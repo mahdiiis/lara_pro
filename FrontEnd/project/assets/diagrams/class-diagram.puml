@@ -1,0 +1,76 @@
+@startuml
+class AuthContext {
+  -user: Object
+  -loading: boolean
+  -quizzes: Array
+  +login(credentials): Promise
+  +register(userData): Promise
+  +logout(): void
+  +updateUserProfile(data): Promise
+  +addQuiz(quiz): void
+}
+
+class ThemeContext {
+  -theme: string
+  +toggleTheme(): void
+}
+
+class LoadingContext {
+  -loading: boolean
+  +setLoading(state): void
+  +startLoading(): void
+  +stopLoading(): void
+}
+
+class LanguageContext {
+  -language: string
+  +setLanguage(lang): void
+}
+
+class App {
+  -quizData: Object
+  -currentStep: number
+  +handleQuizDataChange(): void
+  +resetQuizForm(): void
+  +renderCurrentStep(): JSX.Element
+}
+
+class Dashboard {
+  -recentQuizzes: Array
+  +onCreateNew(): void
+  +render(): JSX.Element
+}
+
+class InitialForm {
+  -data: Object
+  +onDataChange(newData): void
+  +handleInputChange(e): void
+  +render(): JSX.Element
+}
+
+class LevelForm {
+  -levelNumber: number
+  -levelData: Object
+  +onChange(levelData): void
+  +handleTypeChange(type): void
+  +render(): JSX.Element
+}
+
+class Preview {
+  -data: Object
+  +onDataChange(newData): void
+  +onCreateNew(): void
+  +saveQuiz(): Promise
+  +render(): JSX.Element
+}
+
+App --> AuthContext: uses
+App --> ThemeContext: uses
+App --> LoadingContext: uses
+App --> LanguageContext: uses
+App --> Dashboard: renders
+App --> InitialForm: renders
+App --> LevelForm: renders
+App --> Preview: renders
+
+@enduml

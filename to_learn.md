@@ -1,0 +1,1 @@
+- **API** calls in `AIForm.jsx` are asynchronous and use `await` to handle promises. This allows the component to wait for the API response before proceeding with data processing.

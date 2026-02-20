@@ -1,0 +1,399 @@
+# 2pi Dashboard Backend Documentation
+
+## Project Overview
+
+The 2pi Dashboard backend is a Laravel 11 application that provides the API for managing quiz data and user authentication for the 2pi Dashboard frontend. It handles user registration, login, logout, game creation/updates, game retrieval, and game deletion.
+
+## API Endpoints
+
+All API endpoints are relative to the base URL (e.g., `http://localhost:8000/api/`).
+
+### Authentication
+
+-   **`/register` (POST)**
+
+    -   **Description:** Registers a new user.
+    -   **Controller:** `AuthController@register`
+    -   **Request Body:**
+        ```json
+        {
+            "name": "John Doe",
+            "email": "john.doe@example.com",
+            "password": "password123",
+            "password_confirmation": "password123"
+        }
+        ```
+    -   **Request Validation:**
+        -   `name`: Required, string, max 255 characters.
+        -   `email`: Required, string, email format, max 255 characters, unique in the `users` table.
+        -   `password`: Required, string, min 8 characters, confirmed (must match `password_confirmation`).
+    -   **Response (Success - 201 Created):**
+        ```json
+        {
+            "message": "User registered successfully",
+            "user": {
+                "name": "John Doe",
+                "email": "john.doe@example.com",
+                "id": 1,
+                "updated_at": "2025-03-11T15:00:00.000000Z",
+                "created_at": "2025-03-11T15:00:00.000000Z"
+            }
+        }
+        ```
+
+-   **`/login` (POST)**
+
+    -   **Description:** Logs in an existing user.
+    -   **Controller:** `AuthController@login`
+    -   **Request Body:**
+        ```json
+        {
+            "email": "john.doe@example.com",
+            "password": "password123"
+        }
+        ```
+    -   **Request Validation:**
+        -   `email`: Required, email format.
+        -   `password`: Required, string.
+    -   **Response (Success - 200 OK):**
+        ```json
+        {
+            "message": "Login successful",
+            "user": {
+                "id": 1,
+                "name": "John Doe",
+                "email": "john.doe@example.com",
+                "created_at": "2025-03-11T15:00:00.000000Z",
+                "updated_at": "2025-03-11T15:00:00.000000Z"
+            },
+            "token": "1|f1gH56...your_auth_token..."
+        }
+        ```
+    -   **Response (Error - 422 Unprocessable Entity):**
+        ```json
+        {
+            "message": "The given data was invalid.",
+            "errors": {
+                "email": ["The provided credentials are incorrect."]
+            }
+        }
+        ```
+
+-   **`/logout` (POST)**
+
+    -   **Description:** Logs out the authenticated user.
+    -   **Controller:** `AuthController@logout`
+    -   **Middleware:** `auth:sanctum`
+    -   **Request:** No request body.
+    -   **Response (Success - 200 OK):**
+        ```json
+        {
+            "message": "Logged out successfully"
+        }
+        ```
+
+-   **`/user` (GET)**
+
+    -   **Description:** Retrieves the authenticated user's information.
+    -   **Controller:** `AuthController@user`
+    -   **Middleware:** `auth:sanctum`
+    -   **Request:** No request body. Requires a valid Sanctum authentication token in the `Authorization` header (e.g., `Authorization: Bearer your_auth_token`).
+    -   **Response (Success - 200 OK):**
+        ```json
+        {
+            "id": 1,
+            "name": "John Doe",
+            "email": "john.doe@example.com",
+            "created_at": "2025-03-11T15:00:00.000000Z",
+            "updated_at": "2025-03-11T15:00:00.000000Z"
+        }
+        ```
+
+### Game Management
+
+-   **`/game` (POST)**
+
+    -   **Description:** Creates or updates a game and its associated levels and questions.
+    -   **Controller:** `GameController@storeGame`
+    -   **Request Body:**
+        ```json
+        {
+            "course": "Math",
+            "topic": "Algebra",
+            "gameNumber": 1,
+            "numLevels": 2,
+            "levels": [
+                {
+                    "level_number": 1,
+                    "level_type": "box",
+                    "questions": [
+                        {
+                            "text": "What is 2 + 2?",
+                            "answer": "4"
+                        },
+                        {
+                            "text": "What is 5 * 3?",
+                            "answer": "15"
+                        }
+                    ]
+                },
+                {
+                    "level_number": 2,
+                    "level_type": "balloon",
+                    "question": "What is the capital of France?",
+                    "answers": [
+                        {
+                            "text": "London",
+                            "is_true": false
+                        },
+                        {
+                            "text": "Paris",
+                            "is_true": true
+                        },
+                        {
+                            "text": "Berlin",
+                            "is_true": false
+                        }
+                    ]
+                }
+            ],
+            "game_id": null
+        }
+        ```
+        -   **`game_id`:** (Optional) If provided, the game with the given `game_id` will be updated. If not provided, a new game will be created.
+    -   **Request Validation:**
+        -   `course`: Required, string.
+        -   `topic`: Required, string.
+        -   `gameNumber`: Required, integer.
+        -   `numLevels`: Required, integer.
+        -   `levels`: Required, array.
+        -   `game_id`: Nullable, integer.
+    -   **Response (Success - 200 OK):**
+        ```json
+        {
+            "message": "Game data stored successfully!",
+            "game_id": 1
+        }
+        ```
+    -   **Response (Error - 500):**
+        ```json
+        {
+            "error": "Error message"
+        }
+        ```
+
+-   **`/select` (GET)**
+
+    -   **Description:** Retrieves all games.
+    -   **Controller:** `GetGamesController@getGames`
+    -   **Request:** No request body.
+    -   **Response (Success - 200 OK):**
+        ```json
+        {
+            "message": "Games selected successfully!",
+            "data": [
+                {
+                    "game_id": 1,
+                    "course": "Math",
+                    "topic": "Algebra",
+                    "game_number": 1,
+                    "number_of_levels": 2,
+                    "created_at": "2025-03-11T15:00:00.000000Z",
+                    "updated_at": "2025-03-11T15:00:00.000000Z"
+                },
+                {
+                    "game_id": 2,
+                    "course": "Science",
+                    "topic": "Physics",
+                    "game_number": 3,
+                    "number_of_levels": 5,
+                    "created_at": "2025-03-11T16:30:00.000000Z",
+                    "updated_at": "2025-03-11T16:30:00.000000Z"
+                }
+            ]
+        }
+        ```
+
+-   **`/lastGames` (GET)**
+
+    -   **Description:** Retrieves the last three created games.
+    -   **Controller:** `GetGamesController@getLastCreatedGames`
+    -   **Request:** No request body.
+    -   **Response (Success - 200 OK):**
+        ```json
+        {
+            "message": "Last created games fetched successfully!",
+            "data": [
+                {
+                    "game_id": 3,
+                    "course": "History",
+                    "topic": "World War II",
+                    "game_number": 2,
+                    "number_of_levels": 3,
+                    "created_at": "2025-03-11T17:00:00.000000Z",
+                    "updated_at": "2025-03-11T17:00:00.000000Z"
+                },
+                {
+                    "game_id": 2,
+                    "course": "Science",
+                    "topic": "Physics",
+                    "game_number": 3,
+                    "number_of_levels": 5,
+                    "created_at": "2025-03-11T16:30:00.000000Z",
+                    "updated_at": "2025-03-11T16:30:00.000000Z"
+                },
+                {
+                    "game_id": 1,
+                    "course": "Math",
+                    "topic": "Algebra",
+                    "game_number": 1,
+                    "number_of_levels": 2,
+                    "created_at": "2025-03-11T15:00:00.000000Z",
+                    "updated_at": "2025-03-11T15:00:00.000000Z"
+                }
+            ],
+            "count": 3
+        }
+        ```
+
+-   **`/delete` (DELETE)**
+
+    -   **Description:** Deletes a game.
+    -   **Controller:** `RemoveGameController@deleteGame`
+    -   **Request Body:**
+        ```json
+        {
+            "game_id": 1
+        }
+        ```
+    -   **Request Validation:**
+        -   `game_id`: Required, integer, must exist in the `games` table.
+    -   **Response (Success - 200 OK):**
+        ```json
+        {
+            "message": "Game deleted successfully!",
+            "payload": "game_id: 1"
+        }
+        ```
+
+## Data Models
+
+### Game
+
+-   **Table:** `games`
+-   **Model:** `App\Models\Game`
+-   **Attributes:**
+    -   `game_id` (integer, primary key, auto-incrementing)
+    -   `course` (string)
+    -   `topic` (string)
+    -   `game_number` (integer)
+    -   `number_of_levels` (integer)
+    -   `created_at` (timestamp)
+    -   `updated_at` (timestamp)
+-   **Relationships:**
+    -   `levels()`: Has many `App\Models\Level`.
+
+### Level
+
+-   **Table:** `levels`
+-   **Model:** `App\Models\Level`
+-   **Attributes:**
+    -   `level_id` (integer, primary key, auto-incrementing)
+    -   `game_id` (integer, foreign key referencing `games.game_id`, cascade on delete)
+    -   `level_number` (integer)
+    -   `level_type` (enum: 'box', 'balloon')
+    -   `created_at` (timestamp)
+    -   `updated_at` (timestamp)
+-   **Relationships:**
+    -   `game()`: Belongs to `App\Models\Game`.
+    -   If `level_type` is "box": Has many `App\Models\BoxQuestionAnswer`.
+    -   If `level_type` is "balloon": Has one `App\Models\BalloonType`.
+    -   **Note:** The `questions()` relationship in the original `Level.php` is incorrect. It should be replaced with the relationships described above.
+
+### BoxQuestionAnswer
+
+-   **Table:** `box_question_answer`
+-   **Model:** `App\Models\BoxQuestionAnswer`
+-   **Attributes:**
+    -   `id` (integer, primary key, auto-incrementing)
+    -   `level_id` (integer, foreign key referencing `levels.level_id`, cascade on delete)
+    -   `question_text` (long text)
+    -   `answer_text` (long text)
+    -   `created_at` (timestamp)
+    -   `updated_at` (timestamp)
+-   **Relationships:**
+    -   `level()`: Belongs to `App\Models\Level`.
+
+### BalloonType
+
+-   **Table:** `balloon_type`
+-   **Model:** `App\Models\BalloonType`
+-   **Attributes:**
+    -   `balloon_id` (integer, primary key, auto-incrementing)
+    -   `level_id` (integer, foreign key referencing `levels.level_id`, cascade on delete)
+    -   `question_text` (long text)
+    -   `created_at` (timestamp)
+    -   `updated_at` (timestamp)
+-   **Relationships:**
+    -   `level()`: Belongs to `App\Models\Level`.
+    -   `answers()`: Has many `App\Models\BalloonAnswer` (foreign key: `balloon_id`).
+
+### BalloonAnswer
+
+-   **Table:** `balloon_answer`
+-   **Model:** `App\Models\BalloonAnswer`
+-   **Attributes:**
+    -   `id` (integer, primary key, auto-incrementing)
+    -   `balloon_id` (integer, foreign key referencing `balloon_type.balloon_id`, cascade on delete)
+    -   `answer_text` (long text)
+    -   `is_correct` (boolean)
+    -   `created_at` (timestamp)
+    -   `updated_at` (timestamp)
+-   **Relationships:**
+    -   `balloonType()`: Belongs to `App\Models\BalloonType` (foreign key: `balloon_id`).
+
+### User
+
+-   **Table:** `users`
+-   **Model:** `App\Models\User`
+-   **Attributes:**
+    -   `id` (integer, primary key, auto-incrementing)
+    -   `name` (string)
+    -   `email` (string, unique)
+    -   `password` (string)
+    -   `remember_token` (string)
+    -   `created_at` (timestamp)
+    -   `updated_at` (timestamp)
+-   **Relationships:** None directly relevant to the API.
+-   **Notes:** Uses `Laravel\Sanctum\HasApiTokens` for API authentication.
+
+### Login
+
+-   **Table:** `logins`
+-   **Model:** `App\Models\Login`
+-   **Attributes:**
+    -   `id` (integer, primary key, auto-incrementing)
+    -   `user_id` (integer, foreign key referencing `users.id`, cascade on delete)
+    -   `ip_address` (string, nullable)
+    -   `user_agent` (string, nullable)
+    -   `created_at` (timestamp)
+    -   `updated_at` (timestamp)
+-   **Relationships:**
+    -   `user()`: Belongs to `App\Models\User`.
+
+## Authentication
+
+The backend uses Laravel Sanctum for API authentication.
+
+-   The `/register` endpoint creates a new user.
+-   The `/login` endpoint authenticates a user and returns a Sanctum personal access token.
+-   The `/logout` endpoint revokes the user's tokens.
+-   Protected routes (like `/user`) require a valid Sanctum token in the `Authorization` header (e.g., `Authorization: Bearer your_auth_token`). These routes use the `auth:sanctum` middleware.
+
+## Error Handling
+
+Controllers use database transactions (`DB::beginTransaction()`, `DB::commit()`, `DB::rollBack()`) to ensure data consistency. Error handling is implemented using try-catch blocks. If an exception occurs, the transaction is rolled back, and a JSON response with a 500 status code and an error message is returned.
+
+## Database Interactions
+
+The application uses Eloquent ORM (Object-Relational Mapper) for database interactions. Each model corresponds to a database table and provides methods for interacting with that table (e.g., `create`, `update`, `delete`, `all`, `find`, `where`).

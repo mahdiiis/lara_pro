@@ -1,0 +1,16 @@
+ADV/
+└── dashboard_adv/
+    ├── public/ # Static assets
+    ├── src/
+    │ ├── components/ # Reusable UI components
+    │ ├── context/ # Context providers for state management
+    │ ├── hooks/ # Custom React hooks
+    │ ├── pages/ # Page-level components
+    │ ├── translations/ # Internationalization files
+    │ ├── App.jsx # Main application component
+    │ ├── Form.jsx # Form handling logic
+    │ ├── index.css # Global styles
+    │ └── main.jsx # Application entry point
+    ├── .env # Environment variables
+    ├── package.json # Project dependencies
+    └── tailwind.config.js # TailwindCSS configuration

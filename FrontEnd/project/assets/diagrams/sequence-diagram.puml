@@ -1,0 +1,28 @@
+@startuml
+actor Teacher
+participant "Login Page" as Login
+participant "Dashboard" as Dashboard
+participant "Quiz Creation" as Creation
+participant "AuthContext" as Auth
+participant "API" as API
+participant "Backend" as Backend
+
+Teacher -> Login: Enter Credentials
+Login -> Auth: login(credentials)
+Auth -> API: POST /login
+API -> Backend: Validate credentials
+Backend --> API: Return user & token
+API --> Auth: Return response
+Auth --> Login: Update auth state
+Login --> Dashboard: Redirect on success
+
+Teacher -> Dashboard: Click "Create Quiz"
+Dashboard --> Creation: Navigate to create page
+Teacher -> Creation: Enter quiz details
+Creation -> API: POST /game
+API -> Backend: Store quiz data
+Backend --> API: Return success/failure
+API --> Creation: Return response
+Creation --> Dashboard: Navigate on success
+
+@enduml

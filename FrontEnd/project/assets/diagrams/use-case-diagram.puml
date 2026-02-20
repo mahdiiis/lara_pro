@@ -1,0 +1,36 @@
+@startuml
+left to right direction
+actor Teacher as T
+actor Student as S
+rectangle "2pi Dashboard" {
+  usecase "Login" as UC1
+  usecase "Register" as UC2
+  usecase "Create Quiz" as UC3
+  usecase "Edit Quiz" as UC4
+  usecase "Delete Quiz" as UC5
+  usecase "Manage Profile" as UC6
+  usecase "View Quiz List" as UC7
+  usecase "Preview Quiz" as UC8
+  usecase "Take Quiz" as UC9
+  usecase "Change Theme" as UC10
+  usecase "Change Language" as UC11
+}
+
+T --> UC1
+T --> UC2
+T --> UC3
+T --> UC4
+T --> UC5
+T --> UC6
+T --> UC7
+T --> UC8
+T --> UC10
+T --> UC11
+
+S --> UC1
+S --> UC9
+S --> UC10
+S --> UC11
+
+UC3 .> UC8 : <<include>>
+@enduml

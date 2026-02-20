@@ -1,0 +1,701 @@
+# 2pi Dashboard Project - Frontend Documentation
+
+## Project Overview
+
+The 2pi Dashboard is an interactive web application designed to help teachers create and manage engaging math quizzes for their students. The application provides a user-friendly interface for:
+
+- Creating quizzes with different question types (box and balloon)
+- Managing game levels with customizable difficulty progression
+- Previewing quizzes before publishing
+- Viewing and managing existing games
+- Configuring user profile settings
+
+## Target Users
+
+- **Teachers:** Primary users who create and manage quizzes
+
+## Technology Stack
+
+### Core Technologies
+
+- **Framework:** React 18.3
+- **Build Tool:** Vite 6.0
+- **Routing:** react-router-dom v6.30
+- **HTTP Client:** Axios v1.7
+- **Animation:** framer-motion v10.18
+- **Styling:** TailwindCSS v3.4
+- **State Management:** React Context API
+- **Form Validation:** Zod v3.22
+- **Notifications:** react-hot-toast v2.4
+- **Icons:** lucide-react v0.475
+- **Charts:** recharts v2.15
+
+## Architecture
+
+The frontend application follows a component-based architecture with React Context API for state management. The project is organized into the following main directories:
+
+```
+dashboard_adv/
+├── public/              # Static assets
+├── src/
+│   ├── components/      # Reusable UI components
+│   │   ├── AuthRoute.jsx           # Route protection
+│   │   ├── Games.jsx               # Games listing
+│   │   ├── InitialForm.jsx         # Quiz creation step 1
+│   │   ├── LanguageSelector.jsx    # Language selection
+│   │   ├── LevelForm.jsx           # Quiz level creation
+│   │   ├── LoadingSpinner.jsx      # Loading indicator
+│   │   ├── Navbar.jsx              # Main navigation
+│   │   ├── NotificationCenter.jsx  # User notifications
+│   │   ├── NotificationToggle.jsx  # Notification control
+│   │   ├── PageTransition.jsx      # Page transitions
+│   │   ├── Preview.jsx             # Quiz preview
+│   │   ├── QuizForm.jsx            # Student quiz interface
+│   │   ├── RefreshButton.jsx       # Data refresh
+│   │   └── ThemeToggle.jsx         # Theme switching
+│   ├── context/         # Context providers for state management
+│   │   ├── AuthContext.jsx         # Authentication state
+│   │   ├── LanguageContext.jsx     # Language settings
+│   │   ├── LoadingContext.jsx      # Loading states
+│   │   ├── NotificationContext.jsx # Notification system
+│   │   └── ThemeContext.jsx        # Theme management
+│   ├── hooks/           # Custom React hooks
+│   │   ├── useLanguage.js          # Translation functionality
+│   │   ├── useNotifications.js     # Notification management
+│   │   └── useToast.js             # Toast notifications
+│   ├── pages/           # Page-level components
+│   │   ├── Dashboard.jsx           # Main dashboard
+│   │   ├── Login.jsx               # Authentication
+│   │   ├── Settings.jsx            # User profile settings
+│   │   └── Signup.jsx              # User registration
+│   ├── services/        # API service functions
+│   │   ├── api.js                  # Quiz data operations
+│   │   └── auth.js                 # Authentication services
+│   ├── translations/    # Internationalization files
+│   │   ├── en.json                 # English translations
+│   │   └── fr.json                 # French translations
+│   ├── utils/           # Helper functions and utilities
+│   ├── App.jsx          # Main application component
+│   ├── Form.jsx         # Form handling logic
+│   ├── index.css        # Global styles
+│   └── main.jsx         # Application entry point
+├── .env                 # Environment variables
+├── package.json         # Project dependencies
+├── tailwind.config.js   # TailwindCSS configuration
+└── vite.config.js       # Vite configuration
+```
+
+## Component Structure
+
+### Core UI Components
+
+#### NavBar (`components/Navbar.jsx`)
+
+Navigation component that provides:
+
+- Navigation links to different parts of the application
+- Theme toggle button
+- Language selector
+- User profile options and logout button
+
+#### AuthRoute (`components/AuthRoute.jsx`)
+
+Route protection component that:
+
+- Verifies user authentication
+- Redirects unauthenticated users to login page
+- Renders protected content for authenticated users
+
+#### LoadingSpinner (`components/LoadingSpinner.jsx`)
+
+- Visual indicator for asynchronous operations
+- Used throughout the application during API calls
+
+#### PageTransition (`components/PageTransition.jsx`)
+
+- Wrapper component providing smooth page transitions
+- Uses framer-motion for animation effects
+
+### Page Components
+
+#### Dashboard (`pages/Dashboard.jsx`)
+
+Home page displaying:
+
+- Recent quizzes
+- Create New Quiz button
+- Statistics on user activities
+
+#### Login (`pages/Login.jsx`)
+
+Authentication page with:
+
+- Email and password fields
+- Login button
+- Link to signup page
+
+#### Signup (`pages/Signup.jsx`)
+
+Registration page with:
+
+- Name, email, and password fields
+- Register button
+- Link to login page
+
+#### Settings (`pages/Settings.jsx`)
+
+User profile management page with:
+
+- Profile information update form
+- Password change form
+- Profile image upload
+
+### Quiz Creation Flow Components
+
+#### InitialForm (`components/InitialForm.jsx`)
+
+First step in quiz creation that collects:
+
+- Course name
+- Topic
+- Game number
+- Number of levels
+
+#### LevelForm (`components/LevelForm.jsx`)
+
+Second step in quiz creation that manages:
+
+- Question type selection (box or balloon)
+- Question and answer creation for each level
+- Level configuration
+
+#### Preview (`components/Preview.jsx`)
+
+Final step in quiz creation that:
+
+- Shows a preview of the created quiz
+- Allows final adjustments
+- Provides option to save or reset the quiz
+
+#### Games (`components/Games.jsx`)
+
+Component for managing existing games:
+
+- Lists all created games
+- Provides options to view, edit, or delete games
+- Allows filtering and searching games
+
+## State Management
+
+The application uses React Context API for global state management:
+
+### AuthContext (`context/AuthContext.jsx`)
+
+Manages user authentication and user data:
+
+- **State:**
+
+  - `user`: Current authenticated user
+  - `quizzes`: User's quizzes
+  - `loading`: Authentication loading state
+  - `profileImage`: User's profile image
+
+- **Methods:**
+  - `login(credentials)`: Authenticates user
+  - `register(userData)`: Creates new user
+  - `logout()`: Ends user session
+  - `updateUserProfile(data)`: Updates user profile
+  - `updateUserPassword(passwords)`: Changes password
+  - `addQuiz(quiz)`: Adds new quiz
+  - `setAllQuizzes(quizzes)`: Sets all quizzes
+
+### ThemeContext (`context/ThemeContext.jsx`)
+
+Manages application theme:
+
+- **State:**
+
+  - `theme`: Current theme (light/dark)
+
+- **Methods:**
+  - `toggleTheme()`: Toggles between light and dark
+
+### LoadingContext (`context/LoadingContext.jsx`)
+
+Manages loading states:
+
+- **State:**
+
+  - `loading`: Global loading state
+
+- **Methods:**
+  - `setLoading(state)`: Sets loading state
+  - `startLoading()`: Sets loading to true
+  - `stopLoading()`: Sets loading to false
+
+### LanguageContext (`context/LanguageContext.jsx`)
+
+Manages internationalization:
+
+- **State:**
+
+  - `language`: Current language
+
+- **Methods:**
+  - `setLanguage(lang)`: Sets application language
+
+### NotificationContext (`context/NotificationContext.jsx`)
+
+Manages notifications:
+
+- **State:**
+
+  - `notifications`: Array of notification objects
+  - `notificationsEnabled`: Whether notifications are enabled
+  - `unreadCount`: Count of unread notifications
+
+- **Methods:**
+  - `toggleNotifications()`: Toggles notifications on/off
+  - `showNotification(message, type)`: Shows a notification
+  - `clearNotifications()`: Clears all notifications
+  - `markAllAsRead()`: Marks all notifications as read
+
+## Data Flow
+
+1. **Authentication Flow:**
+
+   - User enters credentials in Login component
+   - Credentials passed to AuthContext login method
+   - API request made using Axios
+   - On success, token and user data stored in localStorage
+   - User redirected to Dashboard
+
+2. **Quiz Creation Flow:**
+
+   - User navigates to Create Quiz
+   - InitialForm collects basic quiz information
+   - LevelForm used to create multiple quiz levels
+   - Preview displays finalized quiz
+   - Quiz data sent to backend via API call
+   - On success, quiz added to user's quizzes
+
+3. **Quiz Management Flow:**
+
+   - Dashboard/Games components fetch quizzes from backend
+   - User can view, edit, or delete quizzes
+   - Changes persisted to backend via API
+
+4. **User Settings Flow:**
+   - Settings component fetches current user data
+   - User updates profile information or password
+   - Changes sent to backend via API
+   - On success, user data updated in AuthContext
+
+## API Integration
+
+The application communicates with a backend API using Axios:
+
+### Key Endpoints:
+
+- **Authentication:**
+
+  - `POST /login`: User login
+  - `POST /register`: User registration
+  - `POST /logout`: User logout
+  - `GET /user`: Get user data
+
+- **Quiz Management:**
+
+  - `GET /select`: Get all quizzes
+  - `GET /lastGames`: Get recent quizzes
+  - `POST /game`: Create/update quiz
+  - `DELETE /delete`: Delete quiz
+
+- **Notifications:**
+  - `GET /notifications`: Get user notifications
+  - `PUT /notifications/{id}/read`: Mark notification as read
+  - `PUT /notifications/read-all`: Mark all notifications as read
+  - `DELETE /notifications/{id}`: Delete notification
+  - `DELETE /notifications`: Delete all notifications
+
+## Localization
+
+The application supports multiple languages:
+
+- **Implementation:**
+
+  - Translations stored in `src/translations/` (en.json, fr.json)
+  - Language selection via LanguageSelector component
+  - Language state managed in LanguageContext
+  - Translation accessed through useLanguage hook
+  - Preference saved in localStorage
+
+- **Translation Format:**
+  ```json
+  {
+    "section": {
+      "key": "Translated text",
+      "key_with_param": "Text with {{param}}"
+    }
+  }
+  ```
+
+## UML Diagrams
+
+### Use Case Diagram
+
+```
+@startuml
+left to right direction
+actor Teacher as T
+rectangle "2pi Dashboard" {
+  usecase "Login" as UC1
+  usecase "Register" as UC2
+  usecase "Create Quiz" as UC3
+  usecase "Edit Quiz" as UC4
+  usecase "Delete Quiz" as UC5
+  usecase "Manage Profile" as UC6
+  usecase "View Quiz List" as UC7
+  usecase "Preview Quiz" as UC8
+  usecase "Change Theme" as UC10
+  usecase "Change Language" as UC11
+}
+
+T --> UC1
+T --> UC2
+T --> UC3
+T --> UC4
+T --> UC5
+T --> UC6
+T --> UC7
+T --> UC8
+T --> UC10
+T --> UC11
+
+UC3 .> UC8 : <<include>>
+@enduml
+```
+
+### Sequence Diagram
+
+```
+@startuml
+actor Teacher
+participant "Login Page" as Login
+participant "Dashboard" as Dashboard
+participant "Quiz Creation" as Creation
+participant "AuthContext" as Auth
+participant "API" as API
+participant "Backend" as Backend
+
+Teacher -> Login: Enter Credentials
+Login -> Auth: login(credentials)
+Auth -> API: POST /login
+API -> Backend: Validate credentials
+Backend --> API: Return user & token
+API --> Auth: Return response
+Auth --> Login: Update auth state
+Login --> Dashboard: Redirect on success
+
+Teacher -> Dashboard: Click "Create Quiz"
+Dashboard --> Creation: Navigate to create page
+Teacher -> Creation: Enter quiz details
+Creation -> API: POST /game
+API -> Backend: Store quiz data
+Backend --> API: Return success/failure
+API --> Creation: Return response
+Creation --> Dashboard: Navigate on success
+@enduml
+```
+
+### Class Diagram
+
+```
+@startuml
+class AuthContext {
+  -user: Object
+  -loading: boolean
+  -quizzes: Array
+  +login(credentials): Promise
+  +register(userData): Promise
+  +logout(): void
+  +updateUserProfile(data): Promise
+  +addQuiz(quiz): void
+}
+
+class ThemeContext {
+  -theme: string
+  +toggleTheme(): void
+}
+
+class LoadingContext {
+  -loading: boolean
+  +setLoading(state): void
+  +startLoading(): void
+  +stopLoading(): void
+}
+
+class LanguageContext {
+  -language: string
+  +setLanguage(lang): void
+}
+
+class App {
+  -quizData: Object
+  -currentStep: number
+  +handleQuizDataChange(): void
+  +resetQuizForm(): void
+  +renderCurrentStep(): JSX.Element
+}
+
+class Dashboard {
+  -recentQuizzes: Array
+  +onCreateNew(): void
+  +render(): JSX.Element
+}
+
+class InitialForm {
+  -data: Object
+  +onDataChange(newData): void
+  +handleInputChange(e): void
+  +render(): JSX.Element
+}
+
+class LevelForm {
+  -levelNumber: number
+  -levelData: Object
+  +onChange(levelData): void
+  +handleTypeChange(type): void
+  +render(): JSX.Element
+}
+
+class Preview {
+  -data: Object
+  +onDataChange(newData): void
+  +onCreateNew(): void
+  +saveQuiz(): Promise
+  +render(): JSX.Element
+}
+
+App --> AuthContext: uses
+App --> ThemeContext: uses
+App --> LoadingContext: uses
+App --> LanguageContext: uses
+App --> Dashboard: renders
+App --> InitialForm: renders
+App --> LevelForm: renders
+App --> Preview: renders
+@enduml
+```
+
+### Component Diagram
+
+```
+@startuml
+package "2pi Dashboard" {
+  [App] as app
+
+  package "Context" {
+    [AuthContext] as auth
+    [ThemeContext] as theme
+    [LoadingContext] as loading
+    [LanguageContext] as lang
+    [NotificationContext] as notif
+  }
+
+  package "Pages" {
+    [Dashboard] as dash
+    [Login] as login
+    [Signup] as signup
+    [Settings] as settings
+  }
+
+  package "Components" {
+    [Navbar] as nav
+    [InitialForm] as init
+    [LevelForm] as level
+    [Preview] as preview
+    [Games] as games
+    [LoadingSpinner] as spinner
+    [NotificationCenter] as notifCenter
+  }
+
+  package "Services" {
+    [API] as api
+  }
+
+  app --> auth
+  app --> theme
+  app --> loading
+  app --> lang
+  app --> notif
+
+  app --> dash
+  app --> login
+  app --> signup
+  app --> settings
+
+  dash --> games
+  dash --> nav
+
+  auth --> api
+  notif --> api
+
+  app --> init
+  app --> level
+  app --> preview
+
+  nav --> notifCenter
+}
+
+[Backend API] as backend
+
+@enduml
+```
+
+### Activity Diagram
+
+```
+@startuml
+start
+partition "Authentication Flow" {
+  :User visits app;
+  if (Is authenticated?) then (yes)
+    :Redirect to Dashboard;
+  else (no)
+    :Show Login Page;
+    :Enter Credentials;
+    :Validate Credentials;
+    if (Valid?) then (yes)
+      :Store Token;
+      :Fetch User Data;
+      :Redirect to Dashboard;
+    else (no)
+      :Show Error Message;
+      :Return to Login;
+    endif
+  endif
+}
+
+partition "Quiz Creation Flow" {
+  :Click Create New Quiz;
+  :Fill Initial Form;
+  :Submit Initial Form;
+
+  repeat
+    :Configure Level;
+    :Set Question Type (Box/Balloon);
+    if (Box Type) then (yes)
+      :Add Question-Answer Pairs;
+    else (Balloon)
+      :Add Question;
+      :Add Multiple Answers;
+      :Mark Correct Answer(s);
+    endif
+    :Save Level;
+  repeat while (More Levels?) is (yes)
+
+  :Preview Complete Quiz;
+  :Confirm and Save Quiz;
+  :Show Success Notification;
+  :Return to Dashboard;
+}
+
+partition "Quiz Management Flow" {
+  :Navigate to Games;
+  :View List of Quizzes;
+
+  fork
+    :View Quiz Details;
+  fork again
+    :Edit Existing Quiz;
+    :Save Changes;
+  fork again
+    :Delete Quiz;
+    :Confirm Deletion;
+  end fork
+
+  :Return to Games List;
+}
+
+partition "Settings Management Flow" {
+  :Navigate to Settings;
+
+  fork
+    :Update Profile Information;
+    :Save Profile Changes;
+  fork again
+    :Change Password;
+    :Confirm Current Password;
+    :Enter New Password;
+    :Save Password Changes;
+  fork again
+    :Update Preferences;
+    :Toggle Theme;
+    :Change Language;
+    :Toggle Notifications;
+  end fork
+
+  :Show Success Notification;
+}
+
+stop
+@enduml
+```
+
+## Installation and Setup
+
+1. **Clone the repository:**
+
+   ```bash
+   git clone <repository-url>
+   cd dashboard_adv
+   ```
+
+2. **Install dependencies:**
+
+   ```bash
+   npm install
+   ```
+
+3. **Configure environment variables:**
+
+   - Create a `.env` file based on `.env.example`
+   - Set `VITE_API_URL` to point to your backend API
+
+4. **Start development server:**
+
+   ```bash
+   npm run dev
+   ```
+
+5. **Build for production:**
+   ```bash
+   npm run build
+   ```
+
+## Best Practices
+
+### Code Organization
+
+- Component-based architecture
+- Separation of concerns (components, contexts, pages)
+- Reusable components and hooks
+
+### State Management
+
+- Context API for global state
+- Local state for component-specific data
+- Persistent storage for important data
+
+### Performance Optimization
+
+- Efficient re-rendering using proper component structure
+- Minimizing unnecessary API calls
+- Proper use of useEffect dependencies
+
+### Security Considerations
+
+- Token-based authentication
+- Secure password handling
+- Protected routes for authenticated users only

@@ -1,0 +1,640 @@
+# 2pi Dashboard Project - Backend Documentation
+
+## Project Overview
+
+The 2pi Dashboard Backend is a Laravel-based API that provides the server-side functionality for the quiz management system. It handles:
+
+- User authentication and authorization
+- Quiz data management (creation, retrieval, updates, deletion)
+- Game level management
+- Question and answer handling
+- Notification system
+- Data persistence and validation
+
+## Target Users
+
+- **Teachers:** Primary users who create and manage quizzes
+- **System Administrators:** Users who manage the application and its data
+
+## Technology Stack
+
+### Core Technologies
+
+- **Framework:** Laravel 11.44
+- **PHP Version:** 8.2+
+- **Database:** MySQL/PostgreSQL
+- **Authentication:** JWT (JSON Web Tokens)
+- **API Documentation:** OpenAPI/Swagger
+- **Testing:** PHPUnit 11.0
+
+### Key Dependencies
+
+- **laravel/sanctum:** API authentication
+- **tymon/jwt-auth:** JWT implementation
+- **laravel/tinker:** REPL for Laravel
+- **laravel/breeze:** Authentication scaffolding
+- **laravel/pint:** Code style enforcement
+- **laravel/sail:** Docker development environment
+
+## Architecture
+
+The backend follows Laravel's MVC architecture with the following structure:
+
+```
+2pi_Dashboard_BackEnd/
+├── app/
+│   ├── Http/
+│   │   ├── Controllers/          # API Controllers
+│   │   │   ├── AuthController.php
+│   │   │   ├── GameController.php
+│   │   │   ├── GetGamesController.php
+│   │   │   ├── NotificationController.php
+│   │   │   └── RemoveGameController.php
+│   │   ├── Middleware/          # Request/Response middleware
+│   │   └── Requests/            # Form requests for validation
+│   ├── Models/                  # Eloquent models
+│   │   ├── User.php
+│   │   ├── Game.php
+│   │   ├── Level.php
+│   │   ├── BoxQuestionAnswer.php
+│   │   ├── BalloonType.php
+│   │   ├── BalloonAnswer.php
+│   │   ├── Notification.php
+│   │   └── Login.php
+│   └── Providers/               # Service providers
+├── config/                      # Configuration files
+├── database/
+│   ├── migrations/             # Database migrations
+│   ├── seeders/               # Database seeders
+│   └── factories/             # Model factories
+├── routes/                     # API routes
+├── storage/                    # File storage
+└── tests/                      # Test files
+```
+
+## Component Structure
+
+### Controllers
+
+#### AuthController
+
+- Handles user authentication
+- Manages user registration
+- Processes login/logout
+- Handles password reset
+
+#### GameController
+
+- Creates new quizzes
+- Updates existing quizzes
+- Manages quiz levels
+- Handles question types (box/balloon)
+
+#### GetGamesController
+
+- Retrieves all quizzes
+- Fetches recent games
+- Implements filtering and sorting
+
+#### RemoveGameController
+
+- Handles quiz deletion
+- Manages associated data cleanup
+
+#### NotificationController
+
+- Manages user notifications
+- Handles notification status updates
+- Processes notification preferences
+
+### Models
+
+#### User
+
+- Manages user data
+- Handles authentication
+- Manages relationships with quizzes
+
+#### Game
+
+- Represents a quiz
+- Manages quiz metadata
+- Handles level relationships
+
+#### Level
+
+- Represents a quiz level
+- Manages question types
+- Handles difficulty progression
+
+#### BoxQuestionAnswer
+
+- Manages box-type questions
+- Stores question-answer pairs
+
+#### BalloonType
+
+- Manages balloon-type questions
+- Stores question data
+
+#### BalloonAnswer
+
+- Stores balloon question answers
+- Manages correct answer marking
+
+#### Notification
+
+- Handles user notifications
+- Manages notification status
+
+## Data Flow
+
+1. **Authentication Flow:**
+
+   - Client sends credentials
+   - AuthController validates credentials
+   - JWT token generated and returned
+   - Token used for subsequent requests
+
+2. **Quiz Creation Flow:**
+
+   - Client sends quiz data
+   - GameController validates data
+   - Creates game record
+   - Creates associated levels
+   - Creates questions and answers
+   - Returns created quiz data
+
+3. **Quiz Retrieval Flow:**
+
+   - Client requests quizzes
+   - GetGamesController processes request
+   - Retrieves data from database
+   - Returns formatted response
+
+4. **Quiz Deletion Flow:**
+   - Client requests deletion
+   - RemoveGameController validates request
+   - Deletes associated records
+   - Returns confirmation
+
+## API Integration
+
+### Authentication Endpoints
+
+- `POST /api/login`
+
+  - Authenticates user
+  - Returns JWT token
+
+- `POST /api/register`
+
+  - Creates new user
+  - Returns user data
+
+- `POST /api/logout`
+  - Invalidates token
+  - Logs out user
+
+### Quiz Management Endpoints
+
+- `GET /api/select`
+
+  - Retrieves all quizzes
+  - Supports filtering
+
+- `GET /api/lastGames`
+
+  - Gets recent quizzes
+  - Limited to specified count
+
+- `POST /api/game`
+
+  - Creates/updates quiz
+  - Handles all quiz data
+
+- `DELETE /api/delete`
+  - Removes quiz
+  - Cleans up associated data
+
+### Notification Endpoints
+
+- `GET /api/notifications`
+
+  - Retrieves user notifications
+
+- `PUT /api/notifications/{id}/read`
+
+  - Marks notification as read
+
+- `PUT /api/notifications/read-all`
+
+  - Marks all notifications as read
+
+- `DELETE /api/notifications/{id}`
+
+  - Deletes specific notification
+
+- `DELETE /api/notifications`
+  - Deletes all notifications
+
+## Database Schema
+
+### Users Table
+
+```sql
+CREATE TABLE users (
+    id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    name VARCHAR(255),
+    email VARCHAR(255) UNIQUE,
+    password VARCHAR(255),
+    created_at TIMESTAMP,
+    updated_at TIMESTAMP
+);
+```
+
+### Games Table
+
+```sql
+CREATE TABLE games (
+    id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    user_id BIGINT UNSIGNED,
+    course VARCHAR(255),
+    topic VARCHAR(255),
+    game_number VARCHAR(50),
+    number_of_levels INT,
+    created_at TIMESTAMP,
+    updated_at TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(id)
+);
+```
+
+### Levels Table
+
+```sql
+CREATE TABLE levels (
+    id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    game_id BIGINT UNSIGNED,
+    level_number INT,
+    level_type ENUM('box', 'balloon'),
+    created_at TIMESTAMP,
+    updated_at TIMESTAMP,
+    FOREIGN KEY (game_id) REFERENCES games(id)
+);
+```
+
+### Box Questions Table
+
+```sql
+CREATE TABLE box_question_answers (
+    id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    level_id BIGINT UNSIGNED,
+    question TEXT,
+    answer TEXT,
+    created_at TIMESTAMP,
+    updated_at TIMESTAMP,
+    FOREIGN KEY (level_id) REFERENCES levels(id)
+);
+```
+
+### Balloon Questions Table
+
+```sql
+CREATE TABLE balloon_types (
+    id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    level_id BIGINT UNSIGNED,
+    question TEXT,
+    created_at TIMESTAMP,
+    updated_at TIMESTAMP,
+    FOREIGN KEY (level_id) REFERENCES levels(id)
+);
+```
+
+### Balloon Answers Table
+
+```sql
+CREATE TABLE balloon_answers (
+    id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    balloon_type_id BIGINT UNSIGNED,
+    answer TEXT,
+    is_correct BOOLEAN,
+    created_at TIMESTAMP,
+    updated_at TIMESTAMP,
+    FOREIGN KEY (balloon_type_id) REFERENCES balloon_types(id)
+);
+```
+
+### Notifications Table
+
+```sql
+CREATE TABLE notifications (
+    id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    user_id BIGINT UNSIGNED,
+    message TEXT,
+    read BOOLEAN DEFAULT FALSE,
+    created_at TIMESTAMP,
+    updated_at TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(id)
+);
+```
+
+## UML Diagrams
+
+### Use Case Diagram
+
+```
+@startuml
+left to right direction
+actor Teacher as T
+actor Admin as A
+rectangle "2pi Dashboard Backend" {
+  usecase "Authenticate" as UC1
+  usecase "Manage Quizzes" as UC2
+  usecase "Create Quiz" as UC3
+  usecase "Edit Quiz" as UC4
+  usecase "Delete Quiz" as UC5
+  usecase "View Quizzes" as UC6
+  usecase "Manage Users" as UC7
+  usecase "System Configuration" as UC8
+}
+
+T --> UC1
+T --> UC2
+T --> UC3
+T --> UC4
+T --> UC5
+T --> UC6
+
+A --> UC1
+A --> UC7
+A --> UC8
+
+UC2 ..> UC3 : <<include>>
+UC2 ..> UC4 : <<include>>
+UC2 ..> UC5 : <<include>>
+UC2 ..> UC6 : <<include>>
+@enduml
+```
+
+### Sequence Diagram
+
+```
+@startuml
+actor Teacher
+participant "Frontend" as FE
+participant "AuthController" as AC
+participant "GameController" as GC
+participant "Database" as DB
+
+Teacher -> FE: Enter Credentials
+FE -> AC: POST /api/login
+AC -> DB: Validate Credentials
+DB --> AC: Return User Data
+AC --> FE: Return JWT Token
+FE --> Teacher: Show Dashboard
+
+Teacher -> FE: Create New Quiz
+FE -> GC: POST /api/game
+GC -> DB: Validate Data
+GC -> DB: Create Game Record
+GC -> DB: Create Levels
+GC -> DB: Create Questions
+DB --> GC: Return Created Data
+GC --> FE: Return Quiz Data
+FE --> Teacher: Show Success Message
+@enduml
+```
+
+### Class Diagram
+
+```
+@startuml
+class User {
+  -id: bigint
+  -name: string
+  -email: string
+  -password: string
+  +games(): HasMany
+  +notifications(): HasMany
+}
+
+class Game {
+  -id: bigint
+  -user_id: bigint
+  -course: string
+  -topic: string
+  -game_number: string
+  -number_of_levels: int
+  +user(): BelongsTo
+  +levels(): HasMany
+}
+
+class Level {
+  -id: bigint
+  -game_id: bigint
+  -level_number: int
+  -level_type: enum
+  +game(): BelongsTo
+  +boxQuestions(): HasMany
+  +balloonQuestions(): HasMany
+}
+
+class BoxQuestionAnswer {
+  -id: bigint
+  -level_id: bigint
+  -question: text
+  -answer: text
+  +level(): BelongsTo
+}
+
+class BalloonType {
+  -id: bigint
+  -level_id: bigint
+  -question: text
+  +level(): BelongsTo
+  +answers(): HasMany
+}
+
+class BalloonAnswer {
+  -id: bigint
+  -balloon_type_id: bigint
+  -answer: text
+  -is_correct: boolean
+  +balloonType(): BelongsTo
+}
+
+class Notification {
+  -id: bigint
+  -user_id: bigint
+  -message: text
+  -read: boolean
+  +user(): BelongsTo
+}
+
+User "1" -- "*" Game
+Game "1" -- "*" Level
+Level "1" -- "*" BoxQuestionAnswer
+Level "1" -- "*" BalloonType
+BalloonType "1" -- "*" BalloonAnswer
+User "1" -- "*" Notification
+@enduml
+```
+
+### Component Diagram
+
+```
+@startuml
+package "2pi Dashboard Backend" {
+  [API Layer] as api
+  [Controllers] as controllers
+  [Models] as models
+  [Database] as db
+  [Authentication] as auth
+  [Validation] as validation
+
+  package "Controllers" {
+    [AuthController] as ac
+    [GameController] as gc
+    [GetGamesController] as ggc
+    [RemoveGameController] as rgc
+    [NotificationController] as nc
+  }
+
+  package "Models" {
+    [User] as user
+    [Game] as game
+    [Level] as level
+    [BoxQuestionAnswer] as bqa
+    [BalloonType] as bt
+    [BalloonAnswer] as ba
+    [Notification] as notif
+  }
+
+  api --> controllers
+  controllers --> models
+  models --> db
+  controllers --> auth
+  controllers --> validation
+
+  controllers --> ac
+  controllers --> gc
+  controllers --> ggc
+  controllers --> rgc
+  controllers --> nc
+
+  models --> user
+  models --> game
+  models --> level
+  models --> bqa
+  models --> bt
+  models --> ba
+  models --> notif
+}
+
+[Client Applications] as client
+
+client --> api
+@enduml
+```
+
+### Activity Diagram
+
+```
+@startuml
+start
+:Teacher logs in;
+if (Authentication successful?) then (yes)
+:Display Dashboard;
+fork
+:Create New Quiz;
+:Enter Quiz Details;
+:Add Quiz Levels;
+:Add Questions & Answers;
+:Save Quiz;
+fork again
+:View Existing Quizzes;
+if (Edit Quiz?) then (yes)
+:Modify Quiz Details;
+:Update Quiz;
+else if (Delete Quiz?) then (yes)
+:Confirm Deletion;
+:Remove Quiz;
+endif
+fork again
+:View Notifications;
+:Manage Notification Status;
+end fork
+:Logout;
+else (no)
+:Display Error Message;
+endif
+stop
+@enduml
+```
+
+## Installation and Setup
+
+1. **Clone the repository:**
+
+   ```bash
+   git clone <repository-url>
+   cd 2pi_Dashboard_BackEnd
+   ```
+
+2. **Install dependencies:**
+
+   ```bash
+   composer install
+   ```
+
+3. **Configure environment:**
+
+   ```bash
+   cp .env.example .env
+   php artisan key:generate
+   ```
+
+4. **Configure database:**
+
+   - Update .env with database credentials
+   - Run migrations:
+     ```bash
+     php artisan migrate
+     ```
+
+5. **Start development server:**
+   ```bash
+   php artisan serve
+   ```
+
+## Best Practices
+
+### Code Organization
+
+- Follow PSR-4 autoloading standards
+- Use Laravel's service container
+- Implement repository pattern where needed
+- Follow SOLID principles
+
+### Security
+
+- Implement JWT authentication
+- Use Laravel's CSRF protection
+- Validate all input data
+- Sanitize output
+- Use prepared statements
+- Implement rate limiting
+
+### Performance
+
+- Use database indexing
+- Implement caching where appropriate
+- Optimize database queries
+- Use eager loading for relationships
+
+### Testing
+
+- Write unit tests for models
+- Write feature tests for controllers
+- Use factories for test data
+- Implement CI/CD pipeline

@@ -1,0 +1,345 @@
+import { useState, useEffect } from "react";
+import { Input } from './formQuizInputs/QuizInput';
+import { Select } from "./formQuizInputs/QuizSelect";
+import { motion } from "framer-motion";
+import {
+  Calculator,
+  GraduationCap,
+  BookOpen,
+  Gamepad,
+  Layers,
+  Play,
+  Sparkles,
+} from "lucide-react";
+import { useLanguage } from "../hooks/useLanguage";
+import toast from "react-hot-toast";
+import AIQuestionGenerator from "./AIQuestionGenerator";
+
+
+function InitialForm({ onDataChange, onGoToPreview }) {
+  const { t } = useLanguage();
+  const [formData, setFormData] = useState({
+    course: "",
+    topic: "",
+    gameNumber: "",
+    numLevels: "2",
+    levels: [],
+  });
+
+  // Control AI Question Generator visibility
+  const [showAIGenerator, setShowAIGenerator] = useState(false);
+
+  useEffect(() => {
+    // Clear form data when component mounts
+    localStorage.removeItem("quizFormData");
+  }, []);
+
+  const handleInputChange = (e) => {
+    const { name, value } = e.target;
+    const newData = { ...formData, [name]: value };
+    setFormData(newData);
+    onDataChange(newData);
+  };
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+
+    // Validation
+    if (!formData.course.trim() || !formData.topic.trim() || !formData.gameNumber.trim()) {
+      toast.error(t("fill_all_fields") || "Please fill all fields");
+      return;
+    }
+
+    // Create initial level structure
+    const numLevels = parseInt(formData.numLevels, 10);
+    const newLevels = Array(numLevels)
+      .fill()
+      .map((_, index) => ({
+        level_number: index + 1,
+        level_type: "box",
+        level_stats: {
+          coins: 0,
+          lifes: 5,
+          mistakes: 0,
+          stars: 1,
+          time_spent: 0,
+        },
+        questions: [],
+      }));
+
+    // Update the entire data object
+    const updatedData = {
+      ...formData,
+      levels: newLevels,
+      player_info: {
+        current_level: 1,
+        lives: 3,
+        score: 0,
+      },
+    };
+
+    console.log("✅ [InitialForm] Form submitted with data:", updatedData);
+
+    setFormData(updatedData);
+    onDataChange(updatedData);
+
+    // Go directly to Preview (skip LevelForm)
+    onGoToPreview();
+  };
+
+  //  ============================== AI Questions Handler ================================
+  const handleAIQuestionsGenerated = (generatedData) => {
+    // generatedData format (BATCH mode):
+    // {
+    //   1: { gameType: "box", questions: [...] },
+    //   2: { gameType: "balloon", questions: [...] },
+    //   ...
+    // }
+    console.log("🤖 [InitialForm] Received AI-generated questions for ALL levels:", generatedData);
+
+    try {
+      // Start with current formData levels
+      let updatedLevels = [...formData.levels];
+
+      // Process each level's generated data
+      Object.entries(generatedData).forEach(([levelNumber, levelData]) => {
+        const levelIndex = parseInt(levelNumber) - 1; // Convert to 0-based
+
+        console.log(
+          `🔍 [InitialForm] Processing Level ${levelNumber} (index ${levelIndex})`
+        );
+
+        // Validate level exists
+        if (levelIndex < 0 || levelIndex >= updatedLevels.length) {
+          console.warn(`⚠️ [InitialForm] Level ${levelNumber} not found in levels array`);
+          return;
+        }
+
+        // Extract data
+        const { gameType, questions } = levelData;
+
+        if (!gameType || !questions) {
+          console.warn(
+            `⚠️ [InitialForm] Level ${levelNumber} missing gameType or questions`
+          );
+          return;
+        }
+
+        console.log(
+          `📝 [InitialForm] Updating Level ${levelNumber}: gameType=${gameType}, questionsCount=${questions.length}`
+        );
+
+        // Keep existing level_stats
+        const existingLevel = updatedLevels[levelIndex];
+
+        // Apply to level
+        if (gameType === "box") {
+          // For box type: questions array with { text, answer }
+          console.log(
+            `📦 [InitialForm] Level ${levelNumber} processing BOX type with questions:`,
+            questions
+          );
+          updatedLevels[levelIndex] = {
+            ...existingLevel,
+            level_number: levelIndex + 1,
+            level_type: "box",
+            questions: questions,
+            level_stats: existingLevel.level_stats || {
+              coins: 0,
+              lifes: 5,
+              mistakes: 0,
+              stars: 1,
+              time_spent: 0,
+            },
+          };
+        } else if (gameType === "balloon") {
+          // For balloon type: single question with multiple answers (uses is_true field)
+          console.log(
+            `🎈 [InitialForm] Level ${levelNumber} processing BALLOON type with answers:`,
+            questions[0]?.answers
+          );
+          updatedLevels[levelIndex] = {
+            ...existingLevel,
+            level_number: levelIndex + 1,
+            level_type: "balloon",
+            question: questions[0]?.question || "",
+            answers: questions[0]?.answers || [],
+            level_stats: existingLevel.level_stats || {
+              coins: 0,
+              lifes: 5,
+              mistakes: 0,
+              stars: 1,
+              time_spent: 0,
+            },
+          };
+        }
+      });
+
+      // Update state with all levels at once
+      const updatedData = {
+        ...formData,
+        levels: updatedLevels,
+      };
+
+      console.log("✅ [InitialForm] All levels updated successfully:", updatedData);
+
+      setFormData(updatedData);
+      onDataChange(updatedData);
+      toast.success("All levels generated with questions successfully!");
+    } catch (error) {
+      console.error("❌ [InitialForm] Error processing generated questions:", error);
+      toast.error("Error applying generated questions");
+    }
+  };
+
+  return (
+    <div className="w-full min-h-screen flex items-center justify-center">
+      <div className="flex gap-8 w-full max-w-6xl mx-auto px-4">
+        {/* ===== LEFT SIDE: INITIAL FORM ===== */}
+        <motion.div
+          className="flex-1 glass-card p-8"
+          initial={{ scale: 0.95, opacity: 0, x: -20 }}
+          animate={{ scale: 1, opacity: 1, x: 0 }}
+          transition={{ duration: 0.4 }}
+        >
+          <div className="text-center mb-8">
+            <div className="flex justify-center items-center gap-3 mb-4">
+              <div className="h-14 w-14 rounded-2xl bg-gradient-to-br from-purple-deep to-purple-main flex items-center justify-center shadow-lg shadow-purple-deep/20 hover-glow">
+                <Calculator className="text-3xl text-white" />
+              </div>
+              <h2 className="text-3xl font-bold gradient-text">
+                {t("create_math_quiz")}
+              </h2>
+            </div>
+            <p className="text-gray-600 dark:text-gray-400">
+              {t("design_interactive_quizzes")}
+            </p>
+          </div>
+
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <Input
+              name="course"
+              label={t("course_name")}
+              value={formData.course}
+              onChange={handleInputChange}
+              placeholder={t("e.g., algebra_geometry")}
+              icon={BookOpen}
+            />
+
+            <Input
+              name="topic"
+              label={t("topic")}
+              value={formData.topic}
+              onChange={handleInputChange}
+              placeholder={t("e.g., quadratic_equations")}
+              icon={GraduationCap}
+            />
+
+            <Input
+              name="gameNumber"
+              label={t("game_number")}
+              value={formData.gameNumber}
+              onChange={handleInputChange}
+              placeholder={t("enter_game_number")}
+              icon={Gamepad}
+            />
+
+            <Select
+              name="numLevels"
+              label={t("number_of_levels")}
+              value={formData.numLevels}
+              onChange={handleInputChange}
+              icon={Layers}
+              levels={[1, 2, 3, 4, 5, 6]}
+            />
+
+            {/* ===== ACTION BUTTONS ===== */}
+            <div className="flex flex-col gap-3 pt-4">
+              <motion.button
+                type="submit"
+                className="btn-primary flex items-center justify-center gap-2 w-full"
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
+              >
+                <Play size={18} />
+                {t("start_creating")}
+              </motion.button>
+
+              <motion.button
+                type="button"
+                onClick={() => {
+                  // Validate form before opening AI
+                  if (!formData.numLevels) {
+                    toast.error(t("select_number_of_levels") || "Please select the number of levels");
+                    return;
+                  }
+
+                  // Create levels if they don't exist
+                  if (formData.levels.length === 0) {
+                    const numLevels = parseInt(formData.numLevels, 10);
+                    const newLevels = Array(numLevels)
+                      .fill()
+                      .map((_, index) => ({
+                        level_number: index + 1,
+                        level_type: "box",
+                        level_stats: {
+                          coins: 0,
+                          lifes: 5,
+                          mistakes: 0,
+                          stars: 1,
+                          time_spent: 0,
+                        },
+                        questions: [],
+                      }));
+
+                    const updatedData = {
+                      ...formData,
+                      levels: newLevels,
+                      player_info: {
+                        current_level: 1,
+                        lives: 3,
+                        score: 0,
+                      },
+                    };
+
+                    setFormData(updatedData);
+                    onDataChange(updatedData);
+                  }
+
+                  // Open AI generator panel
+                  setShowAIGenerator(true);
+                }}
+                className="btn-secondary flex items-center justify-center gap-2 w-full"
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
+              >
+                <Sparkles size={18} />
+                {t("generate_questions_with_ai")}
+              </motion.button>
+            </div>
+          </form>
+        </motion.div>
+
+        {/* ===== RIGHT SIDE: AI GENERATOR PANEL ===== */}
+        {showAIGenerator && (
+          <motion.div
+            className="w-96"
+            initial={{ scale: 0.95, opacity: 0, x: 20 }}
+            animate={{ scale: 1, opacity: 1, x: 0 }}
+            exit={{ scale: 0.95, opacity: 0, x: 20 }}
+            transition={{ duration: 0.3 }}
+          >
+            <AIQuestionGenerator
+              isOpen={true}
+              onClose={() => setShowAIGenerator(false)}
+              numLevels={parseInt(formData.numLevels || 2)}
+              onQuestionsGenerated={handleAIQuestionsGenerated}
+            />
+          </motion.div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+export default InitialForm;
