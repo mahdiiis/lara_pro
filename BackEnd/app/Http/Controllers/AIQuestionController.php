@@ -10,9 +10,6 @@ class AIQuestionController extends Controller
 {
     /**
      * Generate questions using AI based on user prompt
-     *
-     * @param Request $request
-     * @return \Illuminate\Http\JsonResponse
      */
     public function generateQuestions(Request $request)
     {
@@ -21,250 +18,217 @@ class AIQuestionController extends Controller
             \Log::info('📋 Request data:', $request->all());
 
             $validated = $request->validate([
-                'prompt' => 'required|string|max:1000',
+                'prompt'    => 'required|string|max:1000',
                 'game_type' => 'required|in:box,balloon',
-                'level' => 'required|integer|min:1|max:10',
+                'level'     => 'required|integer|min:1|max:10',
             ]);
 
             \Log::info('✅ [AIQuestion] Validation passed', $validated);
 
-            // Generate questions based on game type
             $questions = match ($validated['game_type']) {
-                'box' => $this->generateBoxQuestions($validated['prompt']),
+                'box'     => $this->generateBoxQuestions($validated['prompt']),
                 'balloon' => $this->generateBalloonQuestions($validated['prompt']),
             };
 
             \Log::info('🎉 [AIQuestion] Questions generated:', ['count' => count($questions)]);
 
             return response()->json([
-                'success' => true,
+                'success'   => true,
                 'questions' => $questions,
-                'message' => 'Questions generated successfully'
+                'message'   => 'Questions generated successfully',
             ]);
+
         } catch (\Illuminate\Validation\ValidationException $e) {
             \Log::warning('❌ [AIQuestion] Validation failed:', $e->errors());
-
             return response()->json([
                 'success' => false,
                 'message' => 'Validation error',
-                'errors' => $e->errors()
+                'errors'  => $e->errors(),
             ], 422);
+
         } catch (Exception $e) {
             \Log::error('❌ [AIQuestion] Error: ' . $e->getMessage());
-            \Log::error('Stack trace:', ['trace' => $e->getTraceAsString()]);
-
             return response()->json([
                 'success' => false,
-                'message' => 'Failed to generate questions: ' . $e->getMessage()
+                'message' => 'Failed to generate questions: ' . $e->getMessage(),
             ], 500);
         }
     }
 
-    /**
-     * Generate questions for BOX game type
-     * Returns array of questions with text and answer
-     *
-     * @param string $prompt User's prompt for AI
-     * @return array
-     */
+    // ─────────────────────────────────────────────────────────────────────────
+    // Game-type dispatchers
+    // ─────────────────────────────────────────────────────────────────────────
+
     private function generateBoxQuestions(string $prompt): array
     {
-        $apiKey = env('GEMINI_API_KEY');
-
         \Log::info('📦 [AIQuestion] Generating Box type questions');
-        \Log::info('🔑 Gemini API Key configured:', ['has_key' => !!$apiKey]);
+
+        $apiKey = env('GROQ_API_KEY');
 
         if ($apiKey) {
-            // Use Gemini API
-            \Log::info('🌐 [AIQuestion] Using Google Gemini API');
-            return $this->callGeminiAPI($prompt, 'box');
-        } else {
-            // Fallback to mock data for testing/development
-            \Log::info('📋 [AIQuestion] No Gemini key, using mock data');
-            return $this->getMockBoxQuestions($prompt);
+            \Log::info('🌐 [AIQuestion] Using Groq API');
+            return $this->callGroqAPI($prompt, 'box', $apiKey);
         }
+
+        \Log::info('📋 [AIQuestion] No Groq key — using mock data');
+        return $this->getMockBoxQuestions($prompt);
     }
 
-    /**
-     * Generate questions for BALLOON game type
-     * Returns array with a single question and multiple answers
-     *
-     * @param string $prompt User's prompt for AI
-     * @return array
-     */
     private function generateBalloonQuestions(string $prompt): array
     {
-        $apiKey = env('GEMINI_API_KEY');
-
         \Log::info('🎈 [AIQuestion] Generating Balloon type questions');
-        \Log::info('🔑 Gemini API Key configured:', ['has_key' => !!$apiKey]);
+
+        $apiKey = env('GROQ_API_KEY');
 
         if ($apiKey) {
-            // Use Gemini API
-            \Log::info('🌐 [AIQuestion] Using Google Gemini API');
-            return $this->callGeminiAPI($prompt, 'balloon');
-        } else {
-            // Fallback to mock data for testing/development
-            \Log::info('📋 [AIQuestion] No Gemini key, using mock data');
-            return $this->getMockBalloonQuestions($prompt);
+            \Log::info('🌐 [AIQuestion] Using Groq API');
+            return $this->callGroqAPI($prompt, 'balloon', $apiKey);
         }
+
+        \Log::info('📋 [AIQuestion] No Groq key — using mock data');
+        return $this->getMockBalloonQuestions($prompt);
     }
 
-    /**
-     * Call Google Gemini API to generate questions
-     *
-     * @param string $prompt User's prompt
-     * @param string $gameType Type of game ('box' or 'balloon')
-     * @return array Generated questions
-     */
-    private function callGeminiAPI(string $prompt, string $gameType): array
-    {
-        $apiKey = env('GEMINI_API_KEY');
-        $model = 'gemini-1.5-flash';
+    // ─────────────────────────────────────────────────────────────────────────
+    // Groq API (OpenAI-compatible)
+    // ─────────────────────────────────────────────────────────────────────────
 
+    private function callGroqAPI(string $prompt, string $gameType, string $apiKey): array
+    {
+        // Models to try in order (each has its own quota)
+        $models = [
+            'llama-3.3-70b-versatile',
+            'llama-3.1-8b-instant',
+            'mixtral-8x7b-32768',
+        ];
+
+        foreach ($models as $model) {
+            $result = $this->callGroqModel($apiKey, $model, $prompt, $gameType);
+            if ($result !== null) {
+                return $result;
+            }
+            \Log::warning("⚠️ [Groq] Model $model failed — trying next...");
+        }
+
+        \Log::warning('⚠️ [Groq] All models exhausted — falling back to mock data');
+        return $gameType === 'box'
+            ? $this->getMockBoxQuestions($prompt)
+            : $this->getMockBalloonQuestions($prompt);
+    }
+
+    private function callGroqModel(string $apiKey, string $model, string $prompt, string $gameType): ?array
+    {
         if ($gameType === 'box') {
-            $instruction = 'Generate exactly 5 different, clear, and educational questions with their correct answers about: ' . $prompt . '. Make questions progressively challenging and directly related to the topic. Return ONLY valid JSON with no markdown, no extra text. Format: {"questions": [{"text": "Question?", "answer": "Answer"}, ...]}';
+            $systemPrompt = 'You are an educational question generator. Always respond with ONLY valid JSON, no markdown, no explanation.';
+            $userPrompt   = 'Generate exactly 5 different educational questions with correct answers about: ' . $prompt
+                . '. Return ONLY this JSON format: {"questions": [{"text": "Question?", "answer": "Answer"}, ...]}';
         } else {
-            $instruction = 'Generate 1 challenging question with exactly 4 different multiple choice answers (only 1 correct) about: ' . $prompt . '. The correct answer and wrong answers should be clearly differentiated. Return ONLY valid JSON with no markdown, no extra text. Format: {"question": "Question?", "answers": [{"text": "Option", "is_true": true/false}, ...]}';
+            $systemPrompt = 'You are an educational question generator. Always respond with ONLY valid JSON, no markdown, no explanation.';
+            $userPrompt   = 'Generate 1 multiple-choice question with exactly 4 answer options (only 1 correct) about: ' . $prompt
+                . '. Return ONLY this JSON format: {"question": "Question?", "answers": [{"text": "Option", "is_true": true}, {"text": "Option", "is_true": false}, ...]}';
         }
 
         try {
-            \Log::info('🌐 [Gemini] Calling API with key: ' . substr($apiKey, 0, 20) . '...');
-            \Log::info('📝 [Gemini] Instruction: ' . substr($instruction, 0, 100) . '...');
+            \Log::info("🌐 [Groq] Trying model: $model");
 
-            $response = Http::post(
-                "https://generativelanguage.googleapis.com/v1beta/models/$model:generateContent?key=$apiKey",
-                [
-                    'contents' => [
-                        [
-                            'parts' => [
-                                [
-                                    'text' => $instruction
-                                ]
-                            ]
-                        ]
-                    ],
-                    'generationConfig' => [
-                        'temperature' => 0.8,
-                        'maxOutputTokens' => 1500,
-                    ]
-                ]
-            );
+            $response = Http::withHeaders([
+                'Authorization' => 'Bearer ' . $apiKey,
+                'Content-Type'  => 'application/json',
+            ])->post('https://api.groq.com/openai/v1/chat/completions', [
+                'model'       => $model,
+                'messages'    => [
+                    ['role' => 'system', 'content' => $systemPrompt],
+                    ['role' => 'user',   'content' => $userPrompt],
+                ],
+                'temperature' => 0.7,
+                'max_tokens'  => 1000,
+            ]);
 
-            \Log::info('📡 [Gemini] Response status: ' . $response->status());
+            \Log::info('📡 [Groq] Response status: ' . $response->status());
 
             if ($response->successful()) {
-                $data = $response->json();
-                \Log::info('✅ [Gemini] Response received');
+                $data    = $response->json();
+                $content = $data['choices'][0]['message']['content'] ?? null;
 
-                if (isset($data['candidates'][0]['content']['parts'][0]['text'])) {
-                    $content = $data['candidates'][0]['content']['parts'][0]['text'];
-                    \Log::info('📝 [Gemini] Content: ' . substr($content, 0, 200) . '...');
-
-                    // Clean up the response content (remove markdown code blocks if present)
-                    $content = preg_replace('/```json\n?|\n?```/', '', $content);
-                    $content = trim($content);
-
-                    $parsed = json_decode($content, true);
-
-                    if (json_last_error() === JSON_ERROR_NONE && $parsed) {
-                        \Log::info('✅ [Gemini] JSON parsed successfully');
-                        if ($gameType === 'box' && isset($parsed['questions'])) {
-                            \Log::info('📦 [Gemini] Returning box questions: ' . count($parsed['questions']));
-                            return $parsed['questions'];
-                        } elseif ($gameType === 'balloon' && isset($parsed['question'])) {
-                            \Log::info('🎈 [Gemini] Returning balloon question');
-                            return [$parsed];
-                        } else {
-                            \Log::warning('❌ [Gemini] JSON missing expected format');
-                            \Log::warning('Parsed data: ' . json_encode($parsed));
-                        }
-                    } else {
-                        \Log::warning('❌ [Gemini] JSON decode error: ' . json_last_error_msg());
-                    }
-                } else {
-                    \Log::warning('❌ [Gemini] Response missing expected structure');
-                    \Log::warning('Response data: ' . json_encode($data));
+                if (!$content) {
+                    \Log::warning('❌ [Groq] Empty content in response');
+                    return null;
                 }
-            } else {
-                \Log::warning('❌ [Gemini] API Error: ' . $response->status());
-                \Log::warning('Response body: ' . $response->body());
-                // Fallback to mock if API fails
-                return $gameType === 'box' ? $this->getMockBoxQuestions($prompt) : $this->getMockBalloonQuestions($prompt);
-            }
-        } catch (Exception $e) {
-            \Log::error('❌ [Gemini] Exception: ' . $e->getMessage());
-            \Log::error('Stack trace: ' . $e->getTraceAsString());
-            // Fallback to mock if exception occurs
-            return $gameType === 'box' ? $this->getMockBoxQuestions($prompt) : $this->getMockBalloonQuestions($prompt);
-        }
 
-        \Log::warning('⚠️ [Gemini] Falling back to mock data');
-        return $gameType === 'box' ? $this->getMockBoxQuestions($prompt) : $this->getMockBalloonQuestions($prompt);
+                \Log::info('📝 [Groq] Raw content: ' . substr($content, 0, 300));
+
+                // Strip markdown code fences if present
+                $content = preg_replace('/^```json\s*/i', '', trim($content));
+                $content = preg_replace('/\s*```$/', '', $content);
+                $content = trim($content);
+
+                $parsed = json_decode($content, true);
+
+                if (json_last_error() !== JSON_ERROR_NONE || !$parsed) {
+                    \Log::warning('❌ [Groq] JSON decode error: ' . json_last_error_msg());
+                    return null;
+                }
+
+                if ($gameType === 'box' && isset($parsed['questions'])) {
+                    \Log::info('📦 [Groq] Returning ' . count($parsed['questions']) . ' box questions');
+                    return $parsed['questions'];
+                }
+
+                if ($gameType === 'balloon' && isset($parsed['question'])) {
+                    \Log::info('🎈 [Groq] Returning balloon question');
+                    return [$parsed];
+                }
+
+                \Log::warning('❌ [Groq] Unexpected JSON structure: ' . json_encode($parsed));
+                return null;
+
+            } else {
+                \Log::warning("❌ [Groq] Model $model — HTTP " . $response->status());
+                \Log::warning('Response: ' . $response->body());
+                return null;
+            }
+
+        } catch (Exception $e) {
+            \Log::error("❌ [Groq] Model $model — Exception: " . $e->getMessage());
+            return null;
+        }
     }
 
-    /**
-     * Get mock box type questions for testing
-     *
-     * @param string $prompt User's prompt (used for context)
-     * @return array Mock questions
-     */
+    // ─────────────────────────────────────────────────────────────────────────
+    // Mock data (fallback)
+    // ─────────────────────────────────────────────────────────────────────────
+
     private function getMockBoxQuestions(string $prompt): array
     {
         \Log::info('🎭 [AIQuestion] Using MOCK data (Box Type)');
-
         return [
-            [
-                'text' => 'What is 2 + 2?',
-                'answer' => '4'
-            ],
-            [
-                'text' => 'What is the square root of 16?',
-                'answer' => '4'
-            ],
-            [
-                'text' => 'Solve for x: 2x + 5 = 13',
-                'answer' => '4'
-            ],
-            [
-                'text' => 'What is 10 × 3?',
-                'answer' => '30'
-            ],
-            [
-                'text' => 'What is the area of a rectangle with length 5 and width 3?',
-                'answer' => '15'
-            ]
+            ['text' => 'What is 2 + 2?',                                              'answer' => '4'],
+            ['text' => 'What is the square root of 16?',                              'answer' => '4'],
+            ['text' => 'Solve for x: 2x + 5 = 13',                                   'answer' => '4'],
+            ['text' => 'What is 10 × 3?',                                             'answer' => '30'],
+            ['text' => 'What is the area of a rectangle with length 5 and width 3?',  'answer' => '15'],
         ];
     }
 
-    /**
-     * Get mock balloon type questions for testing
-     * Returns 1 question with up to 10 possible answer options
-     * Uses is_true field to match original project architecture
-     *
-     * @param string $prompt User's prompt (used for context)
-     * @return array Mock questions (with single question containing multiple answers)
-     */
     private function getMockBalloonQuestions(string $prompt): array
     {
         \Log::info('🎭 [AIQuestion] Using MOCK data (Balloon Type)');
-
         return [
             [
                 'question' => 'What is 5 + 3?',
-                'answers' => [
-                    ['text' => '6', 'is_true' => false],
-                    ['text' => '7', 'is_true' => false],
-                    ['text' => '8', 'is_true' => true],
-                    ['text' => '9', 'is_true' => false],
+                'answers'  => [
+                    ['text' => '6',  'is_true' => false],
+                    ['text' => '7',  'is_true' => false],
+                    ['text' => '8',  'is_true' => true],
+                    ['text' => '9',  'is_true' => false],
                     ['text' => '10', 'is_true' => false],
                     ['text' => '11', 'is_true' => false],
                     ['text' => '12', 'is_true' => false],
                     ['text' => '13', 'is_true' => false],
                     ['text' => '14', 'is_true' => false],
-                    ['text' => '15', 'is_true' => false]
-                ]
-            ]
+                    ['text' => '15', 'is_true' => false],
+                ],
+            ],
         ];
     }
 }
