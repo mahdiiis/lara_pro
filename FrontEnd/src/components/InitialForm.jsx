@@ -113,7 +113,7 @@ function InitialForm({ onDataChange, onGoToPreview }) {
 
   return (
     <div className="w-full min-h-screen flex items-center justify-center">
-      <div className="flex gap-8 w-full max-w-6xl mx-auto px-4">
+      <div className={`flex gap-8 w-full mx-auto px-4 transition-all duration-300 ${showAIGenerator ? "max-w-5xl" : "max-w-3xl"}`}>
         {/* ===== LEFT SIDE: INITIAL FORM ===== */}
         <motion.div
           className="flex-1 glass-card p-8"
@@ -233,7 +233,7 @@ function InitialForm({ onDataChange, onGoToPreview }) {
                 whileTap={{ scale: 0.98 }}
               >
                 <Sparkles size={18} />
-                {t("generate_questions_with_ai")}
+                {t("generate_quiz_with_ai")}
               </motion.button>
             </div>
           </form>

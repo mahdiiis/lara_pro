@@ -16,6 +16,7 @@
   "game_number": "Numéro du jeu",
   "number_of_levels": "Nombre de niveaux",
   "start_creating": "Commencer la création",
+  "generate_quiz_with_ai": "Générer un quiz avec l'IA",
   "e.g., algebra_geometry": "ex: Algèbre, Géométrie",
   "e.g., quadratic_equations": "ex: Équations quadratiques",
   "enter_game_number": "Entrez le numéro du jeu",
@@ -135,7 +136,6 @@
   "failed_to_export_game": "Échec de l'exportation du jeu",
   "cancel": "Annuler",
   "confirm": "Confirmer",
-
   "preview": {
     "quizSaved": "Quiz enregistré",
     "quizCreated": "Quiz créé",
