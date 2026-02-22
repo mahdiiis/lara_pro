@@ -1,0 +1,2915 @@
+﻿diff --git a/tmp_github_clone/FrontEnd/src/App.jsx b/FrontEnd/src/App.jsx
+index 7c61ec5..77fc1fb 100644
+--- a/tmp_github_clone/FrontEnd/src/App.jsx
++++ b/FrontEnd/src/App.jsx
+@@ -14,19 +14,26 @@ import { AuthProvider, useAuth } from "./context/AuthContext";
+ import {
+   LanguageProvider,
+   useLanguageContext,
+-} from "./context/LanguageContext"; // Import
++} from "./context/LanguageContext";
+ import { NotificationProvider } from "./context/NotificationContext";
+-import { ArrowLeft, ArrowRight } from "lucide-react";
++import { ArrowLeft } from "lucide-react";
+ import axios from "axios";
+ import Navbar from "./components/Navbar";
++
++// ======
+ import InitialForm from "./components/InitialForm";
+-import LevelForm from "./components/LevelForm";
+ import Preview from "./components/Preview";
++// ======
++
+ import Dashboard from "./pages/Dashboard";
+ import Settings from "./pages/Settings";
+ import PageTransition from "./components/PageTransition";
++
++// ======
+ import Login from "./pages/Login";
+ import Signup from "./pages/Signup";
++// ======
++
+ import AuthRoute from "./components/AuthRoute";
+ import Games from "./components/Games";
+ import Game from "./components/Game";
+@@ -104,9 +111,6 @@ function AppContent({ userLoading }) {
+ 
+   const handleQuizDataChange = (newData) => {
+     setQuizData(newData);
+-    if (newData.levels.length > 0 && currentStep === 0) {
+-      setCurrentStep(1);
+-    }
+   };
+ 
+   const resetQuizForm = () => {
+@@ -126,68 +130,21 @@ function AppContent({ userLoading }) {
+     localStorage.removeItem("quizFormData");
+   };
+ 
+-  const handleNext = () => {
+-    if (currentStep < quizData.levels.length) {
+-      setCurrentStep(currentStep + 1);
+-    }
++  const handleGoToPreview = () => {
++    setCurrentStep(1);
+   };
+ 
+-  const handleBack = () => {
+-    if (currentStep > 0) {
+-      setCurrentStep(currentStep - 1);
+-    }
++  const handleBackToInitial = () => {
++    setCurrentStep(0);
+   };
+ 
+   const renderCurrentStep = () => {
+     if (currentStep === 0) {
+       return (
+-        <InitialForm data={quizData} onDataChange={handleQuizDataChange} />
+-      );
+-    }
+-    if (currentStep <= quizData.levels.length) {
+-      const levelIndex = currentStep - 1;
+-      return (
+-        <div className="space-y-4">
+-          <LevelForm
+-            key={levelIndex}
+-            levelNumber={levelIndex + 1}
+-            level={quizData.levels[levelIndex]}
+-            onChange={(levelData) => {
+-              const newLevels = [...quizData.levels];
+-              newLevels[levelIndex] = levelData;
+-              handleQuizDataChange({ ...quizData, levels: newLevels });
+-            }}
+-          />
+-          <div className="flex justify-between items-center mt-6">
+-            <motion.button
+-              onClick={handleBack}
+-              className="btn-secondary flex items-center gap-2"
+-              whileHover={{ scale: 1.02 }}
+-              whileTap={{ scale: 0.98 }}
+-            >
+-              <ArrowLeft size={18} /> {t("back")}
+-            </motion.button>
+-            {currentStep < quizData.levels.length ? (
+-              <motion.button
+-                onClick={handleNext}
+-                className="btn-primary flex items-center gap-2"
+-                whileHover={{ scale: 1.02 }}
+-                whileTap={{ scale: 0.98 }}
+-              >
+-                {t("next")} <ArrowRight size={18} />
+-              </motion.button>
+-            ) : (
+-              <motion.button
+-                onClick={() => setCurrentStep(currentStep + 1)}
+-                className="btn-primary flex items-center gap-2"
+-                whileHover={{ scale: 1.02 }}
+-                whileTap={{ scale: 0.98 }}
+-              >
+-                {t("preview_quiz") || "Preview"} <ArrowRight size={18} />
+-              </motion.button>
+-            )}
+-          </div>
+-        </div>
++        <InitialForm
++          onDataChange={handleQuizDataChange}
++          onGoToPreview={handleGoToPreview}
++        />
+       );
+     }
+     return (
+@@ -199,7 +156,7 @@ function AppContent({ userLoading }) {
+         />
+         <div className="flex justify-start items-center mt-6">
+           <motion.button
+-            onClick={handleBack}
++            onClick={handleBackToInitial}
+             className="btn-secondary flex items-center gap-2"
+             whileHover={{ scale: 1.02 }}
+             whileTap={{ scale: 0.98 }}
+diff --git a/FrontEnd/src/App.md b/FrontEnd/src/App.md
+new file mode 100644
+index 0000000..d58dec9
+--- /dev/null
++++ b/FrontEnd/src/App.md
+@@ -0,0 +1,207 @@
++### understanding the code
++  ## InitialForm.jsx ===> LevelForm.jsx
++
++  - InitialForm.jsx is the first form that the user sees when they create a new quiz
++  - It allows the user to input the number of levels they want in their quiz, and the type of each level (box, puzzle, or quiz)
++  - When the user submits the form, it creates an array of levels based on the number of levels inputted by the user, and passes it to the LevelForm.jsx component
++  - The LevelForm.jsx component then renders a form for each level, allowing the user to input the details for each level (level type, level stats, etc.)
++  - in App.jsx we check currentStep to render either InitialForm.jsx or LevelForm.jsx, and we pass the levels array as a prop to LevelForm.jsx
++
++### ================================================================
++
++- if i'm in url http://localhost:3000/create
++  - i check ``currentStep``, if it's 1, i render InitialForm.jsx, if it's 2, i render LevelForm.jsx
++  - ``currentStep`` is initialised with 0 and is updated to 1 when the user clicks the "Create Quiz" button in `initialForm.jsx` 
++  - `onDataChange` is a function that updates the `levels` state in `App.jsx` with the data from `InitialForm.jsx` and `LevelForm.jsx`
++
++### =================================================================
++
++---
++
++## APP.JSX - COMPLETE UNDERSTANDING
++
++### Overview
++App.jsx is the main container component that manages the entire quiz creation wizard flow using a **step-based navigation system**. It handles routing, state management, and conditional rendering based on the current step.
++
++---
++
++## KEY STATE VARIABLES
++
++```jsx
++const [quizData, setQuizData] = useState({...})
++```
++Stores all quiz data across all steps:
++```jsx
++{
++  course: "",
++  topic: "",
++  gameNumber: "",
++  numLevels: "2",
++  levels: [],  // Array of level objects created in InitialForm
++  player_info: { current_level: 1, lives: 3, score: 0 }
++}
++```
++- Initialized from localStorage if available
++- Updated whenever form data changes
++- Persisted to localStorage automatically via useEffect
++
++```jsx
++const [currentStep, setCurrentStep] = useState(0)
++```
++Tracks which component to render:
++- **Step 0**: InitialForm
++- **Step 1 to N**: LevelForm (where N = number of levels)
++- **Step N+1**: Preview
++
++---
++
++## THE MAGIC FUNCTION: handleQuizDataChange()
++
++```jsx
++const handleQuizDataChange = (newData) => {
++  setQuizData(newData);
++  if (newData.levels.length > 0 && currentStep === 0) {
++    setCurrentStep(1);  // ÔåÉ AUTO-ADVANCES TO LEVELFORM
++  }
++};
++```
++
++**This is where the transition happens!**
++
++1. Receives data from InitialForm or LevelForm's `onChange` callback
++2. Updates the quiz data in state
++3. **TRIGGERS**: If levels exist AND we're still on step 0 ÔåÆ automatically jump to step 1
++4. No manual button click needed ÔÇô it's automatic!
++
++---
++
++## THE FLOW: InitialForm.jsx ===> LevelForm.jsx
++
++### Phase 1: InitialForm (Step 0)
++```jsx
++if (currentStep === 0) {
++  return (
++    <InitialForm data={quizData} onDataChange={handleQuizDataChange} />
++  );
++}
++```
++- User enters: course, topic, gameNumber, numLevels
++- Submits form ÔåÆ calls `onDataChange()` in parent (App.jsx)
++- InitialForm's handleSubmit() creates level array:
++```jsx
++const newLevels = Array(numLevels)
++  .fill()
++  .map((_, index) => ({
++    level_number: index + 1,
++    level_type: "box",
++    level_stats: { coins: 0, lifes: 5, mistakes: 0, stars: 1, time_spent: 0 },
++    questions: []
++  }));
++
++onDataChange({ ...formData, levels: newLevels, ... });
++```
++
++### Phase 2: Automatic Transition
++```jsx
++// In handleQuizDataChange:
++if (newData.levels.length > 0 && currentStep === 0) {
++  setCurrentStep(1);  // Jump to LevelForm
++}
++```
++- App detects levels array now exists
++- Automatically increments step to 1
++- Component re-renders with LevelForm
++
++### Phase 3: LevelForm (Steps 1 to N)
++```jsx
++if (currentStep <= quizData.levels.length) {
++  const levelIndex = currentStep - 1;
++  return (
++    <LevelForm
++      levelNumber={levelIndex + 1}
++      level={quizData.levels[levelIndex]}
++      onChange={(levelData) => {
++        const newLevels = [...quizData.levels];
++        newLevels[levelIndex] = levelData;
++        handleQuizDataChange({ ...quizData, levels: newLevels });
++      }}
++    />
++  );
++}
++```
++- Renders LevelForm for current step (levelIndex = step - 1)
++- User fills in level details (questions, answers, etc.)
++- Each change triggers `onChange` callback
++- Updates that specific level in the levels array
++- Navigation buttons allow forward/back
++
++---
++
++## COMPLETE NAVIGATION FLOW
++
++```
++InitialForm (Step 0)
++    Ôåô (User clicks "Start Creating")
++InitialForm.handleSubmit() called
++    Ôåô (Creates level array, calls onDataChange)
++handleQuizDataChange() receives newData with levels
++    Ôåô (Detects levels.length > 0 && currentStep === 0)
++setCurrentStep(1)
++    Ôåô (Component re-renders)
++LevelForm 1 (Step 1)
++    Ôåô (User fills level 1, clicks "Next")
++setCurrentStep(2)
++    Ôåô
++LevelForm 2 (Step 2)
++    Ôåô (User fills level 2, clicks "Next")
++setCurrentStep(3)
++    Ôåô (assuming 2 levels, now beyond levels.length)
++Preview (Step > levels.length)
++    Ôåô (User submits to backend)
++Quiz saved to database
++```
++
++---
++
++## ROUTING
++
++All quiz creation happens in the `/create` route:
++
++```jsx
++<Route path="/create" element={...renderCurrentStep()...} />
++```
++
++- Uses `motion` for animations between steps
++- Each step transition has fade + slide animation
++- Other routes include dashboard, settings, games, login, etc.
++
++---
++
++## KEY POINTS SUMMARY
++
++Ô£à **Step-based wizard system** ÔÇô currentStep drives what renders
++Ô£à **Automatic transitions** ÔÇô InitialForm ÔåÆ LevelForm happens automatically
++Ô£à **Persistent state** ÔÇô quizData saved to localStorage
++Ô£à **Callback pattern** ÔÇô Child components use onChange/onDataChange to update parent state
++Ô£à **Dynamic level rendering** ÔÇô LevelForm renders once for each level you created
++Ô£à **Previous/Next navigation** ÔÇô Buttons manually advance steps between LevelForms (when not auto-triggered)
++
++---
++
++## InitialForm.jsx Details
++
++- First form user sees when creating a new quiz
++- Inputs: course, topic, gameNumber, numLevels
++- On submit: Creates array of level objects
++- Passes levels array via `onDataChange()` callback
++- App detects levels exist ÔåÆ auto-advances to LevelForm
++
++---
++
++## LevelForm.jsx Details
++
++- Renders once for each level in the quiz
++- Allows user to input details for that specific level
++- Can set: level type, questions, answers, etc.
++- Each change updates that level in the levels array
++- Next/Back buttons manually advance currentStep
+diff --git a/FrontEnd/src/components/AIQuestionGenerator.jsx b/FrontEnd/src/components/AIQuestionGenerator.jsx
+new file mode 100644
+index 0000000..e38f3d8
+--- /dev/null
++++ b/FrontEnd/src/components/AIQuestionGenerator.jsx
+@@ -0,0 +1,299 @@
++import { useState } from "react";
++import { motion } from "framer-motion";
++import { Sparkles, X, Loader, Package, Layers } from "lucide-react";
++import { useLanguage } from "../hooks/useLanguage";
++import toast from "react-hot-toast";
++import axios from "axios";
++
++/**
++ * AIQuestionGenerator Component - REDESIGNED
++ *
++ * Generates questions for ALL levels at once based on selected game types and ONE prompt
++ * Props:
++ *   - isOpen: boolean - Control visibility
++ *   - onClose: function - Close the panel
++ *   - numLevels: number - Total levels in quiz
++ *   - onQuestionsGenerated: function - Callback when all questions are generated
++ */
++
++function AIQuestionGenerator({ isOpen, onClose, numLevels, quizData, onQuestionsGenerated }) {
++  const { t } = useLanguage();
++
++  // Form state: game types for each level + shared prompt
++  const [levelGameTypes, setLevelGameTypes] = useState(
++    Array(numLevels)
++      .fill()
++      .reduce((acc, _, i) => {
++        acc[i + 1] = "box"; // Default to "box"
++        return acc;
++      }, {})
++  );
++
++  const [prompt, setPrompt] = useState("");
++  const [isGenerating, setIsGenerating] = useState(false);
++
++  /**
++   * Handle game type change for a specific level
++   */
++  const handleGameTypeChange = (levelNumber, gameType) => {
++    setLevelGameTypes((prev) => ({
++      ...prev,
++      [levelNumber]: gameType,
++    }));
++  };
++
++  /**
++   * Reset form to initial state
++   */
++  const resetForm = () => {
++    setPrompt("");
++    setLevelGameTypes(
++      Array(numLevels)
++        .fill()
++        .reduce((acc, _, i) => {
++          acc[i + 1] = "box";
++          return acc;
++        }, {})
++    );
++  };
++
++  /**
++   * Handle close with form reset
++   */
++  const handleClose = () => {
++    resetForm();
++    onClose();
++  };
++
++  /**
++   * Generate questions for ALL levels at once using Bulk API
++   */
++  const handleGenerateAllQuestions = async () => {
++    // Validation
++    if (!prompt.trim()) {
++      toast.error(t("enter_prompt") || "Please enter a prompt");
++      return;
++    }
++
++    if (!quizData?.course || !quizData?.topic || !quizData?.gameNumber) {
++      toast.error("Please fill Course, Topic, and Game Number on the form first.");
++      return;
++    }
++
++    // Check if all levels have game types selected
++    const allLevelsConfigured = Array.from({ length: numLevels }, (_, i) => i + 1).every(
++      (levelNum) => levelGameTypes[levelNum]
++    );
++
++    if (!allLevelsConfigured) {
++      toast.error("Please select a game type for all levels");
++      return;
++    }
++
++    setIsGenerating(true);
++    console.log("­ƒÜÇ [AIQuestionGenerator] Generating in BUG BULK MODE...");
++
++    try {
++      const apiUrl = import.meta.env.VITE_API_URL || "http://localhost:8000/api/";
++      const token = localStorage.getItem("token") || sessionStorage.getItem("token");
++
++      if (!token) {
++        toast.error("Authentication required. Please log in.");
++        setIsGenerating(false);
++        return;
++      }
++
++      // Convert levelGameTypes object to a simple array in order
++      const levelTypesArray = [];
++      for (let i = 1; i <= numLevels; i++) {
++        levelTypesArray.push(levelGameTypes[i]);
++      }
++
++      // Prepare bulk payload matching AIQuestionController expectation
++      const payload = {
++        course: quizData.course,
++        topic: quizData.topic,
++        gameNumber: parseInt(quizData.gameNumber, 10),
++        numLevels: numLevels,
++        level_types: levelTypesArray,
++        ai_prompt: prompt
++      };
++
++      console.log("­ƒôª Sending Bulk Payload:", payload);
++
++      const response = await axios.post(
++        `${apiUrl}generate-questions`,
++        payload,
++        {
++          headers: {
++            Authorization: `Bearer ${token}`,
++            "Content-Type": "application/json"
++          },
++        }
++      );
++
++      if (response.status === 200 && response.data.success) {
++        console.log("­ƒÄë [AIQuestionGenerator] Bulk generation successful!", response.data.data);
++        toast.success(t("questions_generated") || `All ${numLevels} levels generated successfully!`);
++
++        // Pass the fully structured JSON data up to the parent
++        onQuestionsGenerated(response.data.data);
++        handleClose();
++      } else {
++        console.error("ÔØî [AIQuestionGenerator] API Error:", response.data);
++        toast.error(response.data.message || "Failed to generate questions. Please try again.");
++      }
++
++    } catch (error) {
++      const errMsg = error.response?.data?.message || error.message || "An unexpected error occurred";
++      console.error("ÔØî [AIQuestionGenerator] Network or Server Error:", errMsg);
++      toast.error(`Error: ${errMsg}`);
++    } finally {
++      setIsGenerating(false);
++    }
++  };
++
++  return (
++    <motion.div
++      className="glass-card p-6 h-full flex flex-col"
++      initial={{ scale: 0.95, opacity: 0 }}
++      animate={{ scale: 1, opacity: 1 }}
++      exit={{ scale: 0.95, opacity: 0 }}
++      transition={{ duration: 0.3 }}
++    >
++      {/* ===== HEADER ===== */}
++      <div className="flex justify-between items-center mb-6 pb-4 border-b border-gray-200 dark:border-gray-700">
++        <div className="flex items-center gap-2">
++          <Sparkles className="text-purple-main" size={20} />
++          <h3 className="font-bold gradient-text">
++            {t("ai_question_generator")}
++          </h3>
++        </div>
++        <button
++          onClick={handleClose}
++          className="p-1 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-lg transition-colors"
++        >
++          <X size={18} />
++        </button>
++      </div>
++
++      {/* ===== BODY (Scrollable) ===== */}
++      <div className="space-y-4 flex-1 overflow-y-auto">
++        {/* STEP 1: Configure Game Types for Each Level */}
++        <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }}>
++          <label className="form-label mb-3">Configure Levels</label>
++          <div className="space-y-2">
++            {Array.from({ length: numLevels }, (_, i) => i + 1).map((levelNumber) => (
++              <motion.div
++                key={levelNumber}
++                className="p-3 bg-gray-50 dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700"
++                initial={{ opacity: 0, x: -10 }}
++                animate={{ opacity: 1, x: 0 }}
++                transition={{ delay: levelNumber * 0.05 }}
++              >
++                <div className="flex items-center justify-between gap-3">
++                  <div className="flex items-center gap-2">
++                    <Layers size={16} className="text-purple-main" />
++                    <span className="font-medium text-sm text-gray-700 dark:text-gray-300">
++                      {t("level")} {levelNumber}
++                    </span>
++                  </div>
++
++                  <div className="flex gap-2">
++                    {/* Box Type Button */}
++                    <motion.button
++                      type="button"
++                      onClick={() => handleGameTypeChange(levelNumber, "box")}
++                      className={`px-3 py-1 rounded-lg transition-all duration-200 flex items-center gap-1 text-xs font-medium ${levelGameTypes[levelNumber] === "box"
++                          ? "bg-gradient-to-r from-purple-deep to-purple-main text-white shadow-md"
++                          : "bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600"
++                        }`}
++                      whileHover={{ scale: 1.05 }}
++                      whileTap={{ scale: 0.95 }}
++                    >
++                      <Package size={12} />
++                      Boxes
++                    </motion.button>
++
++                    {/* Balloon Type Button */}
++                    <motion.button
++                      type="button"
++                      onClick={() => handleGameTypeChange(levelNumber, "balloon")}
++                      className={`px-3 py-1 rounded-lg transition-all duration-200 flex items-center gap-1 text-xs font-medium ${levelGameTypes[levelNumber] === "balloon"
++                          ? "bg-gradient-to-r from-orange-main to-orange-deep text-white shadow-md"
++                          : "bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600"
++                        }`}
++                      whileHover={{ scale: 1.05 }}
++                      whileTap={{ scale: 0.95 }}
++                    >
++                      <Package size={12} />
++                      Balloons
++                    </motion.button>
++                  </div>
++                </div>
++              </motion.div>
++            ))}
++          </div>
++          <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
++            Select game type for each level
++          </p>
++        </motion.div>
++
++        {/* STEP 2: Enter Prompt */}
++        <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }}>
++          <label className="form-label">{t("enter_prompt")}</label>
++          <textarea
++            value={prompt}
++            onChange={(e) => setPrompt(e.target.value)}
++            placeholder="e.g., Generate 5 questions about quadratic equations. This prompt will be used for all levels."
++            className="input-field w-full h-20 resize-none text-sm"
++          />
++          <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
++            ­ƒÆí {t("be_specific_for_better_results") || "Be specific for better results"}
++          </p>
++        </motion.div>
++
++        {/* Summary */}
++        <motion.div
++          className="p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg"
++          initial={{ opacity: 0, y: -10 }}
++          animate={{ opacity: 1, y: 0 }}
++        >
++          <p className="text-xs text-blue-700 dark:text-blue-300 font-medium">
++            ­ƒôï Will generate questions for {numLevels} level
++            {numLevels > 1 ? "s" : ""} using{" "}
++            {Array.from({ length: numLevels }, (_, i) => i + 1)
++              .map((levelNum) => `${levelGameTypes[levelNum]}`)
++              .join(", ")}
++          </p>
++        </motion.div>
++      </div>
++
++      {/* ===== GENERATE BUTTON (sticky bottom) ===== */}
++      <motion.button
++        type="button"
++        onClick={handleGenerateAllQuestions}
++        disabled={isGenerating || !prompt.trim()}
++        className="btn-primary w-full flex items-center justify-center gap-2 mt-6 disabled:opacity-50 disabled:cursor-not-allowed"
++        whileHover={{ scale: isGenerating || !prompt.trim() ? 1 : 1.02 }}
++        whileTap={{ scale: isGenerating || !prompt.trim() ? 1 : 0.98 }}
++        initial={{ opacity: 0, y: 10 }}
++        animate={{ opacity: 1, y: 0 }}
++      >
++        {isGenerating ? (
++          <>
++            <Loader size={16} className="animate-spin" />
++            Generating {numLevels} Level{numLevels > 1 ? "s" : ""}...
++          </>
++        ) : (
++          <>
++            <Sparkles size={16} />
++            Generate All Questions
++          </>
++        )}
++      </motion.button>
++    </motion.div>
++  );
++}
++
++export default AIQuestionGenerator;
+diff --git a/FrontEnd/src/components/AI_INTEGRATION_DOCUMENTATION.md b/FrontEnd/src/components/AI_INTEGRATION_DOCUMENTATION.md
+new file mode 100644
+index 0000000..655c88d
+--- /dev/null
++++ b/FrontEnd/src/components/AI_INTEGRATION_DOCUMENTATION.md
+@@ -0,0 +1,369 @@
++# AI Question Generator Integration - Documentation
++
++## Overview
++Add an AI-powered question generator to InitialForm that allows users to generate questions for a specific level without manually filling the LevelForm.
++
++---
++
++## Architecture Changes
++
++### 1. InitialForm.jsx Modifications
++
++#### New State Variables
++```javascript
++const [showAIForm, setShowAIForm] = useState(false);  // Toggle AI form visibility
++const [aiFormData, setAIFormData] = useState({
++  selectedLevel: null,         // Selected level number (1, 2, 3, etc)
++  selectedGameType: null,      // Selected game type ("box" or "balloon")
++  prompt: "",                  // User's prompt for AI
++  isGenerating: false,         // Loading state
++  generatedQuestions: null,    // Generated questions data
++});
++```
++
++#### New UI Sections
++
++**1. Main Button in InitialForm:**
++```jsx
++<motion.button
++  onClick={() => setShowAIForm(!showAIForm)}
++  className="btn-secondary flex items-center gap-2"
++>
++  <Sparkles size={18} />
++  {t("generate_with_ai")}
++</motion.button>
++```
++
++**2. AI Form Panel (appears on right side):**
++- Step 1: Level Selection (Dropdown: Level 1, 2, 3, etc.)
++- Step 2: Game Type Selection (Buttons: Boxes / Balloons)
++- Step 3: Prompt Input (Text area for AI prompt)
++- Step 4: Generate Button
++
++#### New Functions
++
++```javascript
++const handleAIFormChange = (field, value) => {
++  setAIFormData(prev => ({
++    ...prev,
++    [field]: value
++  }));
++};
++
++const handleGenerateQuestions = async () => {
++  setAIFormData(prev => ({ ...prev, isGenerating: true }));
++  
++  try {
++    // Call backend API to generate questions
++    const response = await fetch(`${apiUrl}generate-questions`, {
++      method: 'POST',
++      headers: {
++        'Content-Type': 'application/json',
++        'Authorization': `Bearer ${token}`
++      },
++      body: JSON.stringify({
++        prompt: aiFormData.prompt,
++        gameType: aiFormData.selectedGameType,
++        level: aiFormData.selectedLevel
++      })
++    });
++    
++    const data = await response.json();
++    
++    if (response.ok) {
++      // Update the level with generated questions
++      updateLevelWithAIQuestions(aiFormData.selectedLevel, data);
++      setShowAIForm(false);
++    } else {
++      toast.error(data.message || "Failed to generate questions");
++    }
++  } catch (error) {
++    toast.error("Error generating questions");
++    console.error(error);
++  } finally {
++    setAIFormData(prev => ({ ...prev, isGenerating: false }));
++  }
++};
++
++const updateLevelWithAIQuestions = (levelNumber, questionsData) => {
++  const levelIndex = levelNumber - 1;
++  const newLevels = [...formData.levels];
++  
++  if (aiFormData.selectedGameType === "balloon") {
++    newLevels[levelIndex] = {
++      ...newLevels[levelIndex],
++      level_type: "balloon",
++      question: questionsData.question,
++      answers: questionsData.answers
++    };
++  } else {
++    newLevels[levelIndex] = {
++      ...newLevels[levelIndex],
++      level_type: "box",
++      questions: questionsData.questions
++    };
++  }
++  
++  const updatedData = { ...formData, levels: newLevels };
++  setFormData(updatedData);
++  onDataChange(updatedData);
++};
++```
++
++---
++
++### 2. Backend API Endpoint
++
++#### Create New File: `BackEnd/app/Http/Controllers/AIQuestionController.php`
++
++```php
++<?php
++
++namespace App\Http\Controllers;
++
++use Illuminate\Http\Request;
++use Illuminate\Support\Facades\Http;
++
++class AIQuestionController extends Controller
++{
++    public function generateQuestions(Request $request)
++    {
++        $validated = $request->validate([
++            'prompt' => 'required|string|max:1000',
++            'gameType' => 'required|in:box,balloon',
++            'level' => 'required|integer|min:1'
++        ]);
++
++        try {
++            $questions = match($validated['gameType']) {
++                'box' => $this->generateBoxQuestions($validated['prompt']),
++                'balloon' => $this->generateBalloonQuestions($validated['prompt']),
++            };
++
++            return response()->json($questions);
++        } catch (\Exception $e) {
++            return response()->json([
++                'message' => 'Failed to generate questions',
++                'error' => $e->getMessage()
++            ], 500);
++        }
++    }
++
++    private function generateBoxQuestions($prompt)
++    {
++        // Call OpenAI API or similar
++        $response = Http::post('https://api.openai.com/v1/chat/completions', [
++            'model' => 'gpt-4',
++            'messages' => [
++                [
++                    'role' => 'system',
++                    'content' => 'Generate 5 quiz questions with answers. Return as JSON: {"questions": [{"text": "...", "answer": "..."}]}'
++                ],
++                [
++                    'role' => 'user',
++                    'content' => $prompt
++                ]
++            ]
++        ]);
++
++        return json_decode($response->body())->data;
++    }
++
++    private function generateBalloonQuestions($prompt)
++    {
++        // Similar logic but for balloon type
++        // Returns: {"question": "...", "answers": [{"text": "...", "is_true": true}]}
++    }
++}
++```
++
++#### Add Route: `BackEnd/routes/api.php`
++
++```php
++Route::post('/generate-questions', [AIQuestionController::class, 'generateQuestions'])->middleware('auth:sanctum');
++```
++
++---
++
++### 3. New Component: AIQuestionForm.jsx (Optional)
++
++You can extract the AI form into a separate component:
++
++```jsx
++// FrontEnd/src/components/AIQuestionForm.jsx
++import { useState } from "react";
++import { motion } from "framer-motion";
++import { Sparkles, X } from "lucide-react";
++
++export function AIQuestionForm({ 
++  numLevels, 
++  onGenerate, 
++  onClose,
++  isGenerating 
++}) {
++  const [aiData, setAIData] = useState({
++    selectedLevel: null,
++    selectedGameType: null,
++    prompt: ""
++  });
++
++  return (
++    // Form JSX here
++  );
++}
++```
++
++---
++
++### 4. UI Layout Changes
++
++**InitialForm Layout:**
++```
++ÔöîÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÉ
++Ôöé         Initial Form (Left)     Ôöé AI Form   Ôöé
++Ôöé  Ôö£ÔöÇ Course Input                Ôöé (Right)   Ôöé
++Ôöé  Ôö£ÔöÇ Topic Input                 Ôöé           Ôöé
++Ôöé  Ôö£ÔöÇ Game Number Input           Ôöé - Level   Ôöé
++Ôöé  Ôö£ÔöÇ Number of Levels Select     Ôöé   Select  Ôöé
++Ôöé  Ôö£ÔöÇ [Get Questions with AI] btn Ôöé - Game    Ôöé
++Ôöé  Ôöé                              Ôöé   Type    Ôöé
++Ôöé  ÔööÔöÇ [Start Creating] btn        Ôöé - Prompt  Ôöé
++Ôöé                                 Ôöé - GenerateÔöé
++ÔööÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÿ
++```
++
++---
++
++## Step-by-Step Implementation
++
++### Phase 1: Frontend
++1. Ô£à Add state variables for AI form
++2. Ô£à Create AI form UI panel
++3. Ô£à Add toggle button for AI form
++4. Ô£à Create level selection dropdown
++5. Ô£à Create game type selection buttons
++6. Ô£à Add prompt input textarea
++7. Ô£à Create generate button with loading state
++8. Ô£à Handle API response and update levels
++
++### Phase 2: Backend
++1. Create AIQuestionController
++2. Add generate-questions route
++3. Integrate OpenAI API
++4. Add error handling
++5. Test endpoint
++
++### Phase 3: Integration
++1. Connect frontend to backend
++2. Add loading indicators
++3. Add success/error messages
++4. Test full flow
++
++---
++
++## Code Flow Diagram
++
++```
++User fills InitialForm
++    Ôåô
++Clicks "Get Questions with AI"
++    Ôåô
++AI Form appears on right
++    Ôåô
++Selects Level (1, 2, 3...)
++    Ôåô
++Shows Game Type buttons (Box/Balloon)
++    Ôåô
++Selects Game Type
++    Ôåô
++Shows Prompt Input
++    Ôåô
++Enters Prompt & Clicks Generate
++    Ôåô
++Calls Backend API: POST /api/generate-questions
++    Ôåô
++Backend calls OpenAI API
++    Ôåô
++Returns generated questions
++    Ôåô
++Frontend updates that level's questions
++    Ôåô
++User can continue creating other levels
++    Ôåô
++Submits form with AI-generated + manual levels
++```
++
++---
++
++## Files to Modify
++
++### Frontend
++- [ ] `FrontEnd/src/components/InitialForm.jsx` - Add AI form logic
++- [ ] `FrontEnd/src/components/InitialForm.md` - Update documentation
++- [ ] `FrontEnd/src/utils/api.js` - Add AI API function
++- [ ] `FrontEnd/src/hooks/useLanguage.js` - Add translation keys
++
++### Backend
++- [ ] Create `BackEnd/app/Http/Controllers/AIQuestionController.php`
++- [ ] Add route in `BackEnd/routes/api.php`
++- [ ] Create `.env` variable for OpenAI API key
++- [ ] Create migration for `ai_generation_logs` table (optional)
++
++---
++
++## Environment Variables Needed
++
++### Frontend (.env)
++```
++VITE_OPENAI_API_KEY=sk-...
++```
++
++### Backend (.env)
++```
++OPENAI_API_KEY=sk-...
++OPENAI_MODEL=gpt-4
++```
++
++---
++
++## Translation Keys to Add
++
++```javascript
++{
++  "generate_with_ai": "Generate with AI",
++  "ai_question_generator": "AI Question Generator",
++  "select_level": "Select Level",
++  "enter_prompt": "Enter your prompt for AI",
++  "generating_questions": "Generating questions...",
++  "questions_generated": "Questions generated successfully!",
++  "generation_failed": "Failed to generate questions"
++}
++```
++
++---
++
++## Testing Checklist
++
++- [ ] AI form appears/disappears on button click
++- [ ] Level selection dropdown works
++- [ ] Game type selection works
++- [ ] Prompt input accepts text
++- [ ] Generate button calls API
++- [ ] Loading spinner shows during generation
++- [ ] Generated questions populate the level
++- [ ] User can continue with other levels
++- [ ] Form submission includes AI-generated questions
++- [ ] Error handling works properly
++
++---
++
++## Future Enhancements
++
++1. Save generated questions to database (AI generation logs)
++2. Allow regenerating questions if not satisfied
++3. Allow editing AI-generated questions before saving
++4. Add different AI models (GPT-3.5, Claude, etc.)
++5. Add question count selector
++6. Add difficulty level selector
++7. Support for different languages
++
+diff --git a/tmp_github_clone/FrontEnd/src/components/InitialForm.jsx b/FrontEnd/src/components/InitialForm.jsx
+index f368d98..25fbd97 100644
+--- a/tmp_github_clone/FrontEnd/src/components/InitialForm.jsx
++++ b/FrontEnd/src/components/InitialForm.jsx
+@@ -1,4 +1,6 @@
+ import { useState, useEffect } from "react";
++import { Input } from './formQuizInputs/QuizInput';
++import { Select } from "./formQuizInputs/QuizSelect";
+ import { motion } from "framer-motion";
+ import {
+   Calculator,
+@@ -7,10 +9,14 @@ import {
+   Gamepad,
+   Layers,
+   Play,
++  Sparkles,
+ } from "lucide-react";
+ import { useLanguage } from "../hooks/useLanguage";
++import toast from "react-hot-toast";
++import AIQuestionGenerator from "./AIQuestionGenerator";
+ 
+-function InitialForm({ data, onDataChange }) {
++
++function InitialForm({ onDataChange, onGoToPreview }) {
+   const { t } = useLanguage();
+   const [formData, setFormData] = useState({
+     course: "",
+@@ -20,6 +26,9 @@ function InitialForm({ data, onDataChange }) {
+     levels: [],
+   });
+ 
++  // Control AI Question Generator visibility
++  const [showAIGenerator, setShowAIGenerator] = useState(false);
++
+   useEffect(() => {
+     // Clear form data when component mounts
+     localStorage.removeItem("quizFormData");
+@@ -35,22 +44,32 @@ function InitialForm({ data, onDataChange }) {
+   const handleSubmit = (e) => {
+     e.preventDefault();
+ 
+-    // Create initial level structure
+-    const numLevels = parseInt(formData.numLevels, 10);
+-    const newLevels = Array(numLevels)
+-      .fill()
+-      .map((_, index) => ({
+-        level_number: index + 1,
+-        level_type: "box",
+-        level_stats: {
+-          coins: 0,
+-          lifes: 5,
+-          mistakes: 0,
+-          stars: 1,
+-          time_spent: 0,
+-        },
+-        questions: [],
+-      }));
++    // Validation
++    if (!formData.course.trim() || !formData.topic.trim() || !formData.gameNumber.trim()) {
++      toast.error(t("fill_all_fields") || "Please fill all fields");
++      return;
++    }
++
++    // Only create initial level structure if levels haven't been generated by AI
++    let newLevels = formData.levels;
++
++    if (!newLevels || newLevels.length === 0) {
++      const numLevels = parseInt(formData.numLevels, 10);
++      newLevels = Array(numLevels)
++        .fill()
++        .map((_, index) => ({
++          level_number: index + 1,
++          level_type: "box",
++          level_stats: {
++            coins: 0,
++            lifes: 5,
++            mistakes: 0,
++            stars: 1,
++            time_spent: 0,
++          },
++          questions: [],
++        }));
++    }
+ 
+     // Update the entire data object
+     const updatedData = {
+@@ -63,111 +82,183 @@ function InitialForm({ data, onDataChange }) {
+       },
+     };
+ 
++    console.log("Ô£à [InitialForm] Form submitted with data:", updatedData);
++
++    setFormData(updatedData);
+     onDataChange(updatedData);
++
++    // Go directly to Preview (skip LevelForm)
++    onGoToPreview();
++  };
++
++  //  ============================== AI Questions Handler ================================
++  const handleAIQuestionsGenerated = (generatedData) => {
++    // generatedData format (BULK mode):
++    // { course: "...", topic: "...", gameNumber: 1, numLevels: 2, levels: [...], player_info: {...} }
++    console.log("­ƒñû [InitialForm] Received Bulk AI-generated questions:", generatedData);
++
++    try {
++      setFormData(generatedData);
++      onDataChange(generatedData);
++      toast.success("All levels generated successfully!");
++
++      // Auto-transition to preview
++      onGoToPreview();
++
++    } catch (error) {
++      console.error("ÔØî [InitialForm] Error processing generated questions:", error);
++      toast.error("Error applying generated questions");
++    }
+   };
+ 
+   return (
+-    <motion.div
+-      className="glass-card p-8 max-w-2xl mx-auto"
+-      initial={{ scale: 0.95, opacity: 0 }}
+-      animate={{ scale: 1, opacity: 1 }}
+-      transition={{ duration: 0.4 }}
+-    >
+-      <div className="text-center mb-8">
+-        <div className="flex justify-center items-center gap-3 mb-4">
+-          <div className="h-14 w-14 rounded-2xl bg-gradient-to-br from-purple-deep to-purple-main flex items-center justify-center shadow-lg shadow-purple-deep/20 hover-glow">
+-            <Calculator className="text-3xl text-white" />
++    <div className="w-full min-h-screen flex items-center justify-center">
++      <div className="flex gap-8 w-full max-w-6xl mx-auto px-4">
++        {/* ===== LEFT SIDE: INITIAL FORM ===== */}
++        <motion.div
++          className="flex-1 glass-card p-8"
++          initial={{ scale: 0.95, opacity: 0, x: -20 }}
++          animate={{ scale: 1, opacity: 1, x: 0 }}
++          transition={{ duration: 0.4 }}
++        >
++          <div className="text-center mb-8">
++            <div className="flex justify-center items-center gap-3 mb-4">
++              <div className="h-14 w-14 rounded-2xl bg-gradient-to-br from-purple-deep to-purple-main flex items-center justify-center shadow-lg shadow-purple-deep/20 hover-glow">
++                <Calculator className="text-3xl text-white" />
++              </div>
++              <h2 className="text-3xl font-bold gradient-text">
++                {t("create_math_quiz")}
++              </h2>
++            </div>
++            <p className="text-gray-600 dark:text-gray-400">
++              {t("design_interactive_quizzes")}
++            </p>
+           </div>
+-          <h2 className="text-3xl font-bold gradient-text">
+-            {t("create_math_quiz")}
+-          </h2>
+-        </div>
+-        <p className="text-gray-600 dark:text-gray-400">
+-          {t("design_interactive_quizzes")}
+-        </p>
+-      </div>
+ 
+-      <form onSubmit={handleSubmit} className="space-y-6">
+-        <div className="group">
+-          <label className="form-label flex items-center gap-2">
+-            <BookOpen className="text-purple-main" size={18} />
+-            {t("course_name")}
+-          </label>
+-          <input
+-            type="text"
+-            name="course"
+-            value={formData.course}
+-            onChange={handleInputChange}
+-            className="input-field"
+-            placeholder={t("e.g., algebra_geometry")}
+-            required
+-          />
+-        </div>
+-
+-        <div className="group">
+-          <label className="form-label flex items-center gap-2">
+-            <GraduationCap className="text-purple-main" size={18} />
+-            {t("topic")}
+-          </label>
+-          <input
+-            type="text"
+-            name="topic"
+-            value={formData.topic}
+-            onChange={handleInputChange}
+-            className="input-field"
+-            placeholder={t("e.g., quadratic_equations")}
+-            required
+-          />
+-        </div>
+-
+-        <div className="group">
+-          <label className="form-label flex items-center gap-2">
+-            <Gamepad className="text-purple-main" size={18} />
+-            {t("game_number")}
+-          </label>
+-          <input
+-            type="number"
+-            name="gameNumber"
+-            value={formData.gameNumber}
+-            onChange={handleInputChange}
+-            className="input-field"
+-            placeholder={t("enter_game_number")}
+-            required
+-            min="1"
+-          />
+-        </div>
+-
+-        <div className="group">
+-          <label className="form-label flex items-center gap-2">
+-            <Layers className="text-purple-main" size={18} />
+-            {t("number_of_levels")}
+-          </label>
+-          <select
+-            name="numLevels"
+-            value={formData.numLevels}
+-            onChange={handleInputChange}
+-            className="input-field"
+-            required
++          <form onSubmit={handleSubmit} className="space-y-4">
++            <Input
++              name="course"
++              label={t("course_name")}
++              value={formData.course}
++              onChange={handleInputChange}
++              placeholder={t("e.g., algebra_geometry")}
++              icon={BookOpen}
++            />
++
++            <Input
++              name="topic"
++              label={t("topic")}
++              value={formData.topic}
++              onChange={handleInputChange}
++              placeholder={t("e.g., quadratic_equations")}
++              icon={GraduationCap}
++            />
++
++            <Input
++              name="gameNumber"
++              label={t("game_number")}
++              value={formData.gameNumber}
++              onChange={handleInputChange}
++              placeholder={t("enter_game_number")}
++              icon={Gamepad}
++            />
++
++            <Select
++              name="numLevels"
++              label={t("number_of_levels")}
++              value={formData.numLevels}
++              onChange={handleInputChange}
++              icon={Layers}
++              levels={[1, 2, 3, 4, 5, 6]}
++            />
++
++            {/* ===== ACTION BUTTONS ===== */}
++            <div className="flex flex-col gap-3 pt-4">
++              <motion.button
++                type="submit"
++                className="btn-primary flex items-center justify-center gap-2 w-full"
++                whileHover={{ scale: 1.02 }}
++                whileTap={{ scale: 0.98 }}
++              >
++                <Play size={18} />
++                {t("start_creating")}
++              </motion.button>
++
++              <motion.button
++                type="button"
++                onClick={() => {
++                  // Validate form before opening AI
++                  if (!formData.numLevels) {
++                    toast.error(t("select_number_of_levels") || "Please select the number of levels");
++                    return;
++                  }
++
++                  // Create levels if they don't exist
++                  if (formData.levels.length === 0) {
++                    const numLevels = parseInt(formData.numLevels, 10);
++                    const newLevels = Array(numLevels)
++                      .fill()
++                      .map((_, index) => ({
++                        level_number: index + 1,
++                        level_type: "box",
++                        level_stats: {
++                          coins: 0,
++                          lifes: 5,
++                          mistakes: 0,
++                          stars: 1,
++                          time_spent: 0,
++                        },
++                        questions: [],
++                      }));
++
++                    const updatedData = {
++                      ...formData,
++                      levels: newLevels,
++                      player_info: {
++                        current_level: 1,
++                        lives: 3,
++                        score: 0,
++                      },
++                    };
++
++                    setFormData(updatedData);
++                    onDataChange(updatedData);
++                  }
++
++                  // Open AI generator panel
++                  setShowAIGenerator(true);
++                }}
++                className="btn-secondary flex items-center justify-center gap-2 w-full"
++                whileHover={{ scale: 1.02 }}
++                whileTap={{ scale: 0.98 }}
++              >
++                <Sparkles size={18} />
++                {t("generate_questions_with_ai")}
++              </motion.button>
++            </div>
++          </form>
++        </motion.div>
++
++        {/* ===== RIGHT SIDE: AI GENERATOR PANEL ===== */}
++        {showAIGenerator && (
++          <motion.div
++            className="w-96"
++            initial={{ scale: 0.95, opacity: 0, x: 20 }}
++            animate={{ scale: 1, opacity: 1, x: 0 }}
++            exit={{ scale: 0.95, opacity: 0, x: 20 }}
++            transition={{ duration: 0.3 }}
+           >
+-            {[1, 2, 3, 4, 5, 6].map((num) => (
+-              <option key={num} value={num}>
+-                {num}
+-              </option>
+-            ))}
+-          </select>
+-        </div>
+-
+-        <motion.button
+-          type="submit"
+-          className="btn-primary flex items-center justify-center gap-2 mt-8 w-full"
+-          whileHover={{ scale: 1.02 }}
+-          whileTap={{ scale: 0.98 }}
+-        >
+-          <Play size={18} />
+-          {t("start_creating")}
+-        </motion.button>
+-      </form>
+-    </motion.div>
++            <AIQuestionGenerator
++              isOpen={true}
++              onClose={() => setShowAIGenerator(false)}
++              numLevels={parseInt(formData.numLevels || 2)}
++              quizData={formData}
++              onQuestionsGenerated={handleAIQuestionsGenerated}
++            />
++          </motion.div>
++        )}
++      </div>
++    </div>
+   );
+ }
+ 
+diff --git a/FrontEnd/src/components/InitialForm.md b/FrontEnd/src/components/InitialForm.md
+new file mode 100644
+index 0000000..5432e89
+--- /dev/null
++++ b/FrontEnd/src/components/InitialForm.md
+@@ -0,0 +1,175 @@
++## Data Flow Overview
++
++### When Form Input Changes
++
++1. Input field value changes in the form
++2. `formData` state is updated with the new value
++3. `onDataChange` callback is triggered with updated `formData`
++4. Parent component (QuizForm) receives and updates its state
++5. QuizForm passes updated data to child components (LevelForm, etc.) as props
++6. Child components re-render with new data and display appropriate fields
++
++---
++
++## onDataChange Callback
++
++**Called in 2 scenarios:**
++
++1. **When user modifies an input field** - Sends updated `formData` as user types
++2. **When user clicks "Start Quiz" button** - Sends final `formData` to initialize the quiz
++
++## updatedData 
++
++1. **responsible for updating the form data state in the parent component (QuizForm)**
++2. **used to pass the updated form data back to the parent component whenever there is a change in the form inputs.**
++3. **ensures that the parent component has the most current form data to work with, allowing it to manage the state of the quiz creation process effectively.**
++
++---
++
++## Form Data Transformation
++
++### Initial Form State
++```json
++{
++  "course": "",
++  "topic": "",
++  "gameNumber": "",
++  "numLevels": "2",
++  "levels": []
++}
++```
++
++### Final Submission Data (onSubmit)
++```jsx
++{
++  course: "", // handled by inputs in the form
++  topic: "", // handled by inputs in the form
++  gameNumber: "", // handled by inputs in the form
++  numLevels: "2", // handled by inputs in the form
++  levels: [   // generated based on numLevels input, with default values for each level
++
++          // == Example of a single level structure ==
++    {
++      level_number: 1,
++      level_type: "box",
++      level_stats: {
++          coins: 0,
++          lifes: 5,
++          mistakes: 0,
++          stars: 1,
++          time_spent: 0,
++      },
++      questions: []
++    }
++  ],
++          // == Additional fields for quiz initialization ==
++    player_info: {
++    current_level: 1,
++    lives: 3,
++    score: 0,
++  },
++  config: {
++    quiz_name: "quizName",
++    num_levels: 2,
++    game_type: "gameType"
++  }
++}
++```
++
++
++
++
++
++
++
++### Setting data in localStorage and adding 1 steep 
++```jsx
++
++
++  const [quizData, setQuizData] = useState(() => {
++    const savedData = localStorage.getItem("quizFormData");
++    return savedData
++      ? JSON.parse(savedData)
++      : {
++          course: "",
++          topic: "",
++          gameNumber: "",
++          numLevels: "2",
++          levels: [],
++          player_info: {
++            current_level: 1,
++            lives: 3,
++            score: 0,
++          },
++        };
++  });
++
++ // =====================================================
++
++  useEffect(() => {
++    // Save form data to localStorage whenever it changes
++    localStorage.setItem("quizFormData", JSON.stringify(quizData));
++  }, [quizData]);
++
++  const handleQuizDataChange = (newData) => {  // newData is resived from on dataChange in InitialForm and LevelForm
++    setQuizData(newData);
++    if (newData.levels.length > 0 && currentStep === 0) {
++      setCurrentStep(1);
++    }
++  };
++```
++
++---
++
++## Form Submission & Auto Step Advancement
++
++### What Happens When You Submit InitialForm
++
++When user fills all inputs and clicks "Start Quiz" button:
++
++1. **InitialForm generates 2 empty levels:**
++   ```javascript
++   levels: [
++     { level_number: 1, level_type: "box", questions: [], ... },
++     { level_number: 2, level_type: "box", questions: [], ... }
++   ]
++   ```
++
++2. **InitialForm calls `onDataChange` with complete data**
++
++3. **Parent (App.jsx) receives updated data in `handleQuizDataChange`**
++
++4. **Both conditions are checked:**
++   ```javascript
++   if (newData.levels.length > 0 && currentStep === 0) {
++   ```
++   - Ô£à `newData.levels.length > 0` ÔåÆ TRUE (has 2 levels)
++   - Ô£à `currentStep === 0` ÔåÆ TRUE (still on initial form)
++
++5. **Result:**
++   ```javascript
++   setCurrentStep(1);  // Auto-advances to Level 1 form
++   ```
++
++**Summary:** Submitting the InitialForm automatically creates 2 empty levels AND advances the user to step 1 to start editing Level 1.
++
++
++
++
++
++
++## see
++  - await ? 
++  ```jsx
++    try {
++        const response = await AI_API_ADDON.generateQuestions({
++          prompt: aiFormData.prompt,
++          gameType: aiFormData.selectedGameType,
++          level: aiFormData.selectedLevel,
++        });
++
++        if (response.status === 200) {
++          const gener ............ 
++  ```
++  - separer AI component
++  - set data in localStorage  
+diff --git a/tmp_github_clone/FrontEnd/src/components/LevelForm.jsx b/FrontEnd/src/components/LevelForm.jsx
+index a03c899..2aea0dc 100644
+--- a/tmp_github_clone/FrontEnd/src/components/LevelForm.jsx
++++ b/FrontEnd/src/components/LevelForm.jsx
+@@ -3,14 +3,18 @@ import { motion, AnimatePresence } from "framer-motion";
+ import { Plus, Gamepad, Check, X, Trash, Package, Layers } from "lucide-react";
+ import { useLanguage } from "../hooks/useLanguage";
+ 
+-function LevelForm({ levelNumber, level, onChange }) {
++import { Box_Bal }  from "./LevelForm_btn_inp/box_bal";
++
++function LevelForm({ levelNumber, level, onChange }) { // levelNumber={levelIndex + 1}//level={quizData.levels[levelIndex]} 
+   const { t } = useLanguage();
+   const [levelType, setLevelType] = useState(level.level_type || "box");
+   const [questions, setQuestions] = useState(level.questions || []);
+   const [singleQuestion, setSingleQuestion] = useState(level.question || "");
+   const [answers, setAnswers] = useState(level.answers || []);
+ 
+-  const handleLevelTypeChange = (type) => {
++//========================= vv ======================================
++
++  const handleLevelTypeChange = (type) => {         //the type is handled her but level_number is handled in app , so this fucntion is just prepering the data structure based on the type of the level that we want to create, if it's box we create a level with questions array, if it's balloon we create a level with question and answers array
+     setLevelType(type);
+     if (type === "box") {
+       onChange({
+@@ -26,7 +30,7 @@ function LevelForm({ levelNumber, level, onChange }) {
+         questions: [],
+       });
+       setQuestions([]);
+-    } else {
++    } else {                            
+       onChange({
+         level_number: levelNumber,
+         level_stats: {
+@@ -45,51 +49,56 @@ function LevelForm({ levelNumber, level, onChange }) {
+     }
+   };
+ 
++//===================== ^^ ==========================================
++
+   const handleAddQuestion = () => {
+     if (levelType === "balloon") {
+       if (answers.length < 10) {
+-        const newAnswer = { text: "", is_true: false };
+-        const newAnswers = [...answers, newAnswer];
++        const newAnswer = { text: "", is_true: false };                     //here i create an object unswer structure to get filled latter //  my unswer is a text and a boolean that indicates if it's true or false
++        const newAnswers = [...answers, newAnswer];                         // create a new array with the new answer
+         setAnswers(newAnswers);
+         onChange({
+           level_number: levelNumber,
+           level_stats: level.level_stats,
+           level_type: levelType,
+           question: singleQuestion,
+-          answers: newAnswers,
++          answers: newAnswers,                                               // ====> adding answers 
+         });
+       }
+     } else {
+       if (questions.length < 5) {
+-        const newQuestions = [...questions, { text: "", answer: "" }];
++        const newQuestions = [...questions, { text: "", answer: "" }];       // here a question is an object with a text and an answer, so when i add a new question, i add an object with empty text and empty answer to the questions array
+         setQuestions(newQuestions);
+         onChange({
+           level_number: levelNumber,
+           level_stats: level.level_stats,
+           level_type: levelType,
+-          questions: newQuestions,
+-        });
++          questions: newQuestions,                                            // ====> adding questions and its answer but the text and the answer are empty for now and will be filled when the user type in the inputs
++        });  
+       }
+     }
+   };
+ 
+-  const handleQuestionChange = (index, field, value) => {
+-    if (levelType === "balloon") {
++//===============================================================
++
++  const handleQuestionChange = (index, field, value) => {                 // handleQuestionChange(0, "question", e.target.value)
++    if (levelType === "balloon") { 
+       if (field === "question") {
+         setSingleQuestion(value);
+         onChange({
+-          level_number: levelNumber,
++          level_number: levelNumber,                                       // this level number is the same unless i click the ''next'' button 
+           level_stats: level.level_stats,
+           level_type: levelType,
+           question: value,
+-          answers,
++          answers,                                                          // arrays of objects like that [{ text: "answer 1", is_true: false }, { text: "answer 2", is_true: true }]
+         });
+       } else {
+-        const newAnswers = answers.map((a, i) => {
++        const newAnswers = answers.map((a, i) => {                          // at least i have 1 answer in the array because i can't change the question unless i add an answer, so when i change the question or the true or false of the answer, i need to update the answers array and then send the new data to the onChange to update the quiz data in the app
+           if (i === index) {
+-            return { ...a, [field === "answer" ? "text" : field]: value };
++            return { ...a, [field === "answer" ? "text" : field]: value };  // handleQuestionChange used in (answer input ) ===> (index, "answer", e.target.value)  // handleQuestionChange used in (true/false btn ) ===> handleQuestionChange(index, "is_true", !answer.is_true)
++                                                                            // so an unswer object id like that { text: "the answer", is_true: false }, if the field is "answer" we update the text, if the field is "is_true" we update the is_true
+           }
+-          return a;
++          return a;                                                         //a is my object { text: "the answer", is_true: false} but filled with the data that the user type in the inputs and the true or false that the user select in the true or false button, so when i change something in the answer, i update the answers array with the new data and then i send it to the onChange to update the quiz data in the app
+         });
+         setAnswers(newAnswers);
+         onChange({
+@@ -102,13 +111,13 @@ function LevelForm({ levelNumber, level, onChange }) {
+       }
+     } else {
+       const newQuestions = questions.map((q, i) => {
+-        if (i === index) {
++        if (i === index) {                                                //handleQuestionChange(index, "text", e.target.value) handleQuestionChange(index, "answer", e.target.value)
+           return { ...q, [field]: value };
+         }
+         return q;
+       });
+       setQuestions(newQuestions);
+-      onChange({
++      onChange({                                                          // updating the App with the new questions array when i change the question or the answer in the box level, so when i change something in the question or the answer, i update the questions array with the new data and then i send it to the onChange to update the quiz data in the app
+         level_number: levelNumber,
+         level_stats: level.level_stats,
+         level_type: levelType,
+@@ -117,6 +126,8 @@ function LevelForm({ levelNumber, level, onChange }) {
+     }
+   };
+ 
++//===============================================================
++
+   const handleDeleteQuestion = (index) => {
+     if (levelType === "balloon") {
+       const newAnswers = answers.filter((_, i) => i !== index);
+@@ -139,7 +150,7 @@ function LevelForm({ levelNumber, level, onChange }) {
+       });
+     }
+   };
+-
++                              //===============================================================
+   return (
+     <motion.div
+       className="glass-card p-8"
+@@ -147,6 +158,7 @@ function LevelForm({ levelNumber, level, onChange }) {
+       animate={{ opacity: 1, y: 0 }}
+       transition={{ duration: 0.4 }}
+     >
++{/* ================================================ */}
+       <div className="flex items-center gap-3 mb-6">
+         <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-purple-deep to-purple-main flex items-center justify-center shadow-md hover-glow">
+           <Gamepad className="text-xl text-white" />
+@@ -155,51 +167,19 @@ function LevelForm({ levelNumber, level, onChange }) {
+           {t("level")} {levelNumber}
+         </h3>
+       </div>
+-
++{/* ================================================ */}
+       <div className="mb-6">
+         <label className="form-label">{t("game_type")}</label>
+         <div className="flex gap-4">
+-          <button
+-            onClick={() => handleLevelTypeChange("box")}
+-            className={`flex-1 py-3 px-4 rounded-xl transition-all duration-200 flex items-center justify-center gap-2 ${
+-              levelType === "box"
+-                ? "bg-gradient-to-r from-purple-deep to-purple-main text-white shadow-md"
+-                : "bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600"
+-            }`}
+-          >
+-            <Package
+-              className={
+-                levelType === "box"
+-                  ? "text-white"
+-                  : "text-purple-main dark:text-purple-light"
+-              }
+-              size={18}
+-            />
+-            {t("boxes")}
+-          </button>
+-          <button
+-            onClick={() => handleLevelTypeChange("balloon")}
+-            className={`flex-1 py-3 px-4 rounded-xl transition-all duration-200 flex items-center justify-center gap-2 ${
+-              levelType === "balloon"
+-                ? "bg-gradient-to-r from-cyan-main to-cyan-deep text-white shadow-md"
+-                : "bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600"
+-            }`}
+-          >
+-            <Layers
+-              className={
+-                levelType === "balloon"
+-                  ? "text-white"
+-                  : "text-cyan-main dark:text-cyan-light"
+-              }
+-              size={18}
+-            />
+-            {t("balloons")}
+-          </button>
++          {/* ================================================ */}  
++          <Box_Bal levelType="box" handleLevelTypeChange={handleLevelTypeChange} curretnLevelType={levelType} />
++          <Box_Bal levelType="balloon" handleLevelTypeChange={handleLevelTypeChange} curretnLevelType={levelType} />
++          {/* ================================================ */}
+         </div>
+       </div>
+-
++{/* ================================================ */}
+       <div className="space-y-6">
+-        {levelType === "balloon" ? (
++        {levelType === "balloon" ? ( // in balloon  we use  handleQuestionChange 3 times, one for the question, one for the answer and one for the true or false, in box we use it only 2 times, one for the question and one for the answer
+           <>
+             <motion.div layout>
+               <label className="form-label">{t("question")}</label>
+@@ -213,9 +193,9 @@ function LevelForm({ levelNumber, level, onChange }) {
+                 className="input-field"
+               />
+             </motion.div>
+-
++{/* ============================ -- ==================== */}
+             <AnimatePresence>
+-              {answers.map((answer, index) => (
++              {answers.map((answer, index) => (  // here if i have the empty array of answers so i have no answers, the map will not render anything, but if i click the add answer button, it will add a new answer to the array and then the map will render the new answer with the input and the true or false button and the delete button, and if i click the add answer button again, it will add another answer to the array and then the map will render the 2 answers, etc
+                 <motion.div
+                   key={index}
+                   layout
+@@ -235,7 +215,7 @@ function LevelForm({ levelNumber, level, onChange }) {
+                   />
+                   <button
+                     onClick={() =>
+-                      handleQuestionChange(index, "is_true", !answer.is_true)
++                      handleQuestionChange(index, "is_true", !answer.is_true) // sending is_true so we apdate the is_true 
+                     }
+                     className={`toggle-btn ${
+                       answer.is_true ? "toggle-btn-true" : "toggle-btn-false"
+@@ -244,6 +224,7 @@ function LevelForm({ levelNumber, level, onChange }) {
+                     {answer.is_true ? <Check size={18} /> : <X size={18} />}
+                     {answer.is_true ? t("true") : t("false")}
+                   </button>
++                  {/* ========================= ^^======================== */}
+                   <button
+                     onClick={() => handleDeleteQuestion(index)}
+                     className="p-2 text-gray-500 hover:text-red-500 transition-colors"
+@@ -267,6 +248,7 @@ function LevelForm({ levelNumber, level, onChange }) {
+             )}
+           </>
+         ) : (
++          // =========================== -Box part- ====================
+           <>
+             <AnimatePresence>
+               {questions.map((q, index) => (
+@@ -283,6 +265,7 @@ function LevelForm({ levelNumber, level, onChange }) {
+                       <span className="text-sm font-medium text-purple-main dark:text-purple-light w-24">
+                         {t("question")} {index + 1}
+                       </span>
++                      {/* ============================== vv ==================================== */}
+                       <input
+                         type="text"
+                         value={q.text}
+@@ -307,6 +290,7 @@ function LevelForm({ levelNumber, level, onChange }) {
+                         className="input-field"
+                       />
+                     </div>
++                    {/* ============================== ^^ ==================================== */}
+                   </div>
+                   <button
+                     onClick={() => handleDeleteQuestion(index)}
+diff --git a/FrontEnd/src/components/LevelForm.md b/FrontEnd/src/components/LevelForm.md
+new file mode 100644
+index 0000000..a760938
+--- /dev/null
++++ b/FrontEnd/src/components/LevelForm.md
+@@ -0,0 +1,46 @@
++- **if Ballloins**
++  - 1 question with 10 answers.
++  - each answer has a text and a boolean to indicate if it's correct or not.
++- **if Box**
++  - 1 question with 1 answer.
++  - the answer is a text input where the student will write their answer.
++
++
++### undersanding the data structure of the quiz form 
++
++```jsx
++{
++  course: "", // handled by inputs in the form
++  topic: "", // handled by inputs in the form
++  gameNumber: "", // handled by inputs in the form
++  numLevels: "2", // handled by inputs in the form
++  levels: [   // generated based on numLevels input, with default values for each level
++
++          // == Example of a single level structure ==
++    {
++      level_number: 1,
++      level_type: "box",
++      level_stats: {
++          coins: 0,
++          lifes: 5,
++          mistakes: 0,
++          stars: 1,
++          time_spent: 0,
++      },
++      questions: []
++    }
++  ],
++          // == Additional fields for quiz initialization ==
++    player_info: {
++    current_level: 1,
++    lives: 3,
++    score: 0,
++  },
++  config: {
++    quiz_name: "quizName",
++    num_levels: 2,
++    game_type: "gameType"
++  }
++}
++```
++- ``LevelForm`` is responsible for handling the data of each level, so it will receive the level data as a prop and it will update it based on the inputs in the form, and then it will pass the updated level data to the parent component (App.jsx) through a callback function (onChange) that we will define in the App.jsx and we will pass it to the LevelForm as a prop, so when the level data is updated in the LevelForm, it will call the onChange function and pass the updated level data to the App.jsx, and then in the App.jsx we will update the quizData state with the new level data, and this will trigger a re-render of the App.jsx and it will display the updated level data in the LevelForm.
+diff --git a/FrontEnd/src/components/LevelForm_btn_inp/box_bal.jsx b/FrontEnd/src/components/LevelForm_btn_inp/box_bal.jsx
+new file mode 100644
+index 0000000..0bc1bce
+--- /dev/null
++++ b/FrontEnd/src/components/LevelForm_btn_inp/box_bal.jsx
+@@ -0,0 +1,76 @@
++import { useLanguage } from "../../hooks/useLanguage";
++import { Package  ,Layers } from "lucide-react";
++
++export function Box_Bal({ levelType, handleLevelTypeChange ,curretnLevelType }) {
++    const { t } = useLanguage();
++    
++    const isBox = levelType === "box";
++    const isActive = curretnLevelType === levelType;
++
++    return(<>
++        <button
++            onClick={() => handleLevelTypeChange(levelType)}
++            className={`flex-1 py-3 px-4 rounded-xl transition-all duration-200 flex items-center justify-center gap-2 ${
++            isActive 
++            ? isBox 
++                ? "bg-gradient-to-r from-purple-deep to-purple-main text-white shadow-md"
++                : "bg-gradient-to-r from-cyan-main to-cyan-deep text-white shadow-md"
++            : "bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600"
++            }`}
++        >
++            {/* <Package
++            className={
++                levelType === "box"
++                ? "text-white"
++                : "text-purple-main dark:text-purple-light"
++            }
++            size={18}
++            />
++            {t("boxes")} */}
++            {isBox 
++                ? <Package className="text-white" size={18} /> 
++                : <Layers className="text-white" size={18} />}
++            {isBox ? t("boxes") : t("balloons")}
++        </button>
++    </>
++    )
++}
++
++        
++        {/* <button
++        onClick={() => handleLevelTypeChange("box")}
++        className={`flex-1 py-3 px-4 rounded-xl transition-all duration-200 flex items-center justify-center gap-2 ${
++            levelType === "box"
++            ? "bg-gradient-to-r from-purple-deep to-purple-main text-white shadow-md"
++            : "bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600"
++        }`}
++        >
++        <Package
++            className={
++            levelType === "box"
++                ? "text-white"
++                : "text-purple-main dark:text-purple-light"
++            }
++            size={18}
++        />
++        {t("boxes")}
++        </button> */}
++        {/* ================================================ */}
++        {/* <button
++        onClick={() => handleLevelTypeChange("balloon")}
++        className={`flex-1 py-3 px-4 rounded-xl transition-all duration-200 flex items-center justify-center gap-2 ${
++            levelType === "balloon"
++            ? "bg-gradient-to-r from-cyan-main to-cyan-deep text-white shadow-md"
++            : "bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600"
++        }`}
++        >
++        <Layers
++            className={
++            levelType === "balloon"
++                ? "text-white"
++                : "text-cyan-main dark:text-cyan-light"
++            }
++            size={18}
++        />
++        {t("balloons")}
++        </button> */}
+\ No newline at end of file
+diff --git a/FrontEnd/src/components/LevelsAccordion.jsx b/FrontEnd/src/components/LevelsAccordion.jsx
+new file mode 100644
+index 0000000..ca7baf0
+--- /dev/null
++++ b/FrontEnd/src/components/LevelsAccordion.jsx
+@@ -0,0 +1,414 @@
++import { useState } from "react";
++import { motion, AnimatePresence } from "framer-motion";
++import { Plus, Gamepad, Check, X, Trash, ChevronDown } from "lucide-react";
++import { useLanguage } from "../hooks/useLanguage";
++import { Box_Bal } from "./LevelForm_btn_inp/box_bal";
++
++/**
++ * LevelsAccordion Component
++ *
++ * Combines accordion UI with level editing logic
++ * Props:
++ *   - levels: array of level objects
++ *   - onLevelChange: callback when level data changes
++ */
++
++function LevelsAccordion({ levels, onLevelChange }) {
++  const { t } = useLanguage();
++  const [expandedLevel, setExpandedLevel] = useState(0); // Track which level is expanded
++
++  /**
++   * Handle level accordion toggle
++   */
++  const handleToggleLevel = (levelIndex) => {
++    setExpandedLevel(expandedLevel === levelIndex ? null : levelIndex);
++  };
++
++  /**
++   * Update specific level data
++   */
++  const handleLevelUpdated = (levelIndex, updatedLevelData) => {
++    onLevelChange(levelIndex, updatedLevelData);
++  };
++
++  return (
++    <div className="space-y-3 mt-8">
++      <h3 className="text-lg font-bold gradient-text mb-4">
++        {t("edit_levels")} ({levels.length})
++      </h3>
++
++      <AnimatePresence>
++        {levels.map((level, levelIndex) => (
++          <motion.div
++            key={levelIndex}
++            layout
++            initial={{ opacity: 0, y: 10 }}
++            animate={{ opacity: 1, y: 0 }}
++            exit={{ opacity: 0, y: -10 }}
++          >
++            {/* ===== ACCORDION HEADER ===== */}
++            <motion.button
++              onClick={() => handleToggleLevel(levelIndex)}
++              className="w-full p-4 bg-gradient-to-r from-purple-deep/10 to-purple-main/10 dark:from-purple-deep/20 dark:to-purple-main/20 rounded-lg flex items-center justify-between hover:from-purple-deep/20 hover:to-purple-main/20 transition-all duration-200 border border-purple-main/20"
++              whileHover={{ scale: 1.01 }}
++              whileTap={{ scale: 0.99 }}
++            >
++              <div className="flex items-center gap-3">
++                <Gamepad className="text-purple-main" size={20} />
++                <div className="text-left">
++                  <p className="font-semibold text-gray-800 dark:text-gray-100">
++                    {t("level")} {levelIndex + 1}
++                  </p>
++                  <p className="text-xs text-gray-600 dark:text-gray-400">
++                    {level.level_type === "box" ? t("boxes") : t("balloons")}
++                    {level.questions?.length > 0 || level.answers?.length > 0 ? ` ÔÇó ${level.questions?.length || 1} Q` : ""}
++                  </p>
++                </div>
++              </div>
++
++              <motion.div
++                animate={{ rotate: expandedLevel === levelIndex ? 180 : 0 }}
++                transition={{ duration: 0.2 }}
++              >
++                <ChevronDown size={20} className="text-purple-main" />
++              </motion.div>
++            </motion.button>
++
++            {/* ===== ACCORDION CONTENT ===== */}
++            <AnimatePresence>
++              {expandedLevel === levelIndex && (
++                <motion.div
++                  initial={{ opacity: 0, height: 0 }}
++                  animate={{ opacity: 1, height: "auto" }}
++                  exit={{ opacity: 0, height: 0 }}
++                  transition={{ duration: 0.3 }}
++                  className="mt-3 p-6 bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-700 dark:to-gray-800 rounded-lg border border-gray-200 dark:border-gray-600"
++                >
++                  <LevelFormContent
++                    levelNumber={levelIndex + 1}
++                    level={level}
++                    onChange={(updatedData) =>
++                      handleLevelUpdated(levelIndex, updatedData)
++                    }
++                  />
++                </motion.div>
++              )}
++            </AnimatePresence>
++          </motion.div>
++        ))}
++      </AnimatePresence>
++    </div>
++  );
++}
++
++/**
++ * LevelFormContent
++ * The actual form content for editing a level
++ * This contains the logic from original LevelForm
++ */
++
++function LevelFormContent({ levelNumber, level, onChange }) {
++  const { t } = useLanguage();
++  const [levelType, setLevelType] = useState(level.level_type || "box");
++  const [questions, setQuestions] = useState(level.questions || []);
++  const [singleQuestion, setSingleQuestion] = useState(level.question || "");
++  const [answers, setAnswers] = useState(level.answers || []);
++
++  // ===== Handle Level Type Change =====
++  const handleLevelTypeChange = (type) => {
++    setLevelType(type);
++    if (type === "box") {
++      onChange({
++        level_number: levelNumber,
++        level_stats: {
++          coins: 0,
++          lifes: 5,
++          mistakes: 0,
++          stars: 1,
++          time_spent: 0,
++        },
++        level_type: type,
++        questions: [],
++      });
++      setQuestions([]);
++    } else {
++      onChange({
++        level_number: levelNumber,
++        level_stats: {
++          coins: 0,
++          lifes: 5,
++          mistakes: 0,
++          stars: 1,
++          time_spent: 0,
++        },
++        level_type: type,
++        question: "",
++        answers: [],
++      });
++      setSingleQuestion("");
++      setAnswers([]);
++    }
++  };
++
++  // ===== Handle Add Question =====
++  const handleAddQuestion = () => {
++    if (levelType === "balloon") {
++      if (answers.length < 10) {
++        const newAnswer = { text: "", is_true: false };
++        const newAnswers = [...answers, newAnswer];
++        setAnswers(newAnswers);
++        onChange({
++          level_number: levelNumber,
++          level_stats: level.level_stats,
++          level_type: levelType,
++          question: singleQuestion,
++          answers: newAnswers,
++        });
++      }
++    } else {
++      if (questions.length < 5) {
++        const newQuestions = [...questions, { text: "", answer: "" }];
++        setQuestions(newQuestions);
++        onChange({
++          level_number: levelNumber,
++          level_stats: level.level_stats,
++          level_type: levelType,
++          questions: newQuestions,
++        });
++      }
++    }
++  };
++
++  // ===== Handle Question Change =====
++  const handleQuestionChange = (index, field, value) => {
++    if (levelType === "balloon") {
++      if (field === "question") {
++        setSingleQuestion(value);
++        onChange({
++          level_number: levelNumber,
++          level_stats: level.level_stats,
++          level_type: levelType,
++          question: value,
++          answers,
++        });
++      } else {
++        const newAnswers = answers.map((a, i) => {
++          if (i === index) {
++            return { ...a, [field === "answer" ? "text" : field]: value };
++          }
++          return a;
++        });
++        setAnswers(newAnswers);
++        onChange({
++          level_number: levelNumber,
++          level_stats: level.level_stats,
++          level_type: levelType,
++          question: singleQuestion,
++          answers: newAnswers,
++        });
++      }
++    } else {
++      const newQuestions = questions.map((q, i) => {
++        if (i === index) {
++          return { ...q, [field]: value };
++        }
++        return q;
++      });
++      setQuestions(newQuestions);
++      onChange({
++        level_number: levelNumber,
++        level_stats: level.level_stats,
++        level_type: levelType,
++        questions: newQuestions,
++      });
++    }
++  };
++
++  // ===== Handle Delete Question =====
++  const handleDeleteQuestion = (index) => {
++    if (levelType === "balloon") {
++      const newAnswers = answers.filter((_, i) => i !== index);
++      setAnswers(newAnswers);
++      onChange({
++        level_number: levelNumber,
++        level_stats: level.level_stats,
++        level_type: levelType,
++        question: singleQuestion,
++        answers: newAnswers,
++      });
++    } else {
++      const newQuestions = questions.filter((_, i) => i !== index);
++      setQuestions(newQuestions);
++      onChange({
++        level_number: levelNumber,
++        level_stats: level.level_stats,
++        level_type: levelType,
++        questions: newQuestions,
++      });
++    }
++  };
++
++  return (
++    <div className="space-y-6">
++      {/* ===== Game Type Selection ===== */}
++      <div className="mb-6">
++        <label className="form-label">{t("game_type")}</label>
++        <div className="flex gap-4">
++          <Box_Bal
++            levelType="box"
++            handleLevelTypeChange={handleLevelTypeChange}
++            curretnLevelType={levelType}
++          />
++          <Box_Bal
++            levelType="balloon"
++            handleLevelTypeChange={handleLevelTypeChange}
++            curretnLevelType={levelType}
++          />
++        </div>
++      </div>
++
++      {/* ===== Questions/Answers Section ===== */}
++      <div className="space-y-6">
++        {levelType === "balloon" ? (
++          <>
++            {/* Balloon: Single Question */}
++            <motion.div layout>
++              <label className="form-label">{t("question")}</label>
++              <input
++                type="text"
++                value={singleQuestion}
++                onChange={(e) =>
++                  handleQuestionChange(0, "question", e.target.value)
++                }
++                placeholder={t("enter_your_question")}
++                className="input-field"
++              />
++            </motion.div>
++
++            {/* Balloon: Answers List */}
++            <AnimatePresence>
++              {answers.map((answer, index) => (
++                <motion.div
++                  key={index}
++                  layout
++                  initial={{ opacity: 0, y: -20 }}
++                  animate={{ opacity: 1, y: 0 }}
++                  exit={{ opacity: 0, y: 20 }}
++                  className="flex gap-4 items-center bg-white dark:bg-gray-600 p-4 rounded-xl border border-gray-200 dark:border-gray-500"
++                >
++                  <input
++                    type="text"
++                    value={answer.text}
++                    onChange={(e) =>
++                      handleQuestionChange(index, "answer", e.target.value)
++                    }
++                    placeholder={t("answer")}
++                    className="input-field flex-1"
++                  />
++                  <button
++                    onClick={() =>
++                      handleQuestionChange(index, "is_true", !answer.is_true)
++                    }
++                    className={`toggle-btn ${
++                      answer.is_true ? "toggle-btn-true" : "toggle-btn-false"
++                    }`}
++                  >
++                    {answer.is_true ? <Check size={18} /> : <X size={18} />}
++                    {answer.is_true ? t("true") : t("false")}
++                  </button>
++                  <button
++                    onClick={() => handleDeleteQuestion(index)}
++                    className="p-2 text-gray-500 hover:text-red-500 transition-colors"
++                  >
++                    <Trash size={18} />
++                  </button>
++                </motion.div>
++              ))}
++            </AnimatePresence>
++
++            {/* Add Answer Button */}
++            {answers.length < 10 && (
++              <motion.button
++                onClick={handleAddQuestion}
++                className="btn-secondary flex items-center justify-center gap-2 w-full"
++                whileHover={{ scale: 1.02 }}
++                whileTap={{ scale: 0.98 }}
++              >
++                <Plus size={18} />
++                {t("add_answer")} ({answers.length}/10)
++              </motion.button>
++            )}
++          </>
++        ) : (
++          <>
++            {/* Box: Questions List */}
++            <AnimatePresence>
++              {questions.map((q, index) => (
++                <motion.div
++                  key={index}
++                  layout
++                  initial={{ opacity: 0, y: -20 }}
++                  animate={{ opacity: 1, y: 0 }}
++                  exit={{ opacity: 0, y: 20 }}
++                  className="flex gap-4 items-center bg-white dark:bg-gray-600 p-4 rounded-xl border border-gray-200 dark:border-gray-500"
++                >
++                  <div className="flex-1 space-y-3">
++                    <div className="flex items-center">
++                      <span className="text-sm font-medium text-purple-main dark:text-purple-light w-24">
++                        {t("question")} {index + 1}
++                      </span>
++                      <input
++                        type="text"
++                        value={q.text}
++                        onChange={(e) =>
++                          handleQuestionChange(index, "text", e.target.value)
++                        }
++                        placeholder={t("question")}
++                        className="input-field"
++                      />
++                    </div>
++                    <div className="flex items-center">
++                      <span className="text-sm font-medium text-purple-main dark:text-purple-light w-24">
++                        {t("answer")}
++                      </span>
++                      <input
++                        type="text"
++                        value={q.answer}
++                        onChange={(e) =>
++                          handleQuestionChange(index, "answer", e.target.value)
++                        }
++                        placeholder={t("answer")}
++                        className="input-field"
++                      />
++                    </div>
++                  </div>
++                  <button
++                    onClick={() => handleDeleteQuestion(index)}
++                    className="p-2 text-gray-500 hover:text-red-500 transition-colors"
++                  >
++                    <Trash size={18} />
++                  </button>
++                </motion.div>
++              ))}
++            </AnimatePresence>
++
++            {/* Add Question Button */}
++            {questions.length < 5 && (
++              <motion.button
++                onClick={handleAddQuestion}
++                className="btn-secondary flex items-center justify-center gap-2 w-full"
++                whileHover={{ scale: 1.02 }}
++                whileTap={{ scale: 0.98 }}
++              >
++                <Plus size={18} />
++                {t("add_question")} ({questions.length}/5)
++              </motion.button>
++            )}
++          </>
++        )}
++      </div>
++    </div>
++  );
++}
++
++export default LevelsAccordion;
+diff --git a/tmp_github_clone/FrontEnd/src/components/Preview.jsx b/FrontEnd/src/components/Preview.jsx
+index dcd3b26..9b3ee04 100644
+--- a/tmp_github_clone/FrontEnd/src/components/Preview.jsx
++++ b/FrontEnd/src/components/Preview.jsx
+@@ -10,6 +10,7 @@ import {
+   Plus,
+   Package,
+   Layers,
++  Trash2,
+ } from "lucide-react";
+ import { useNavigate } from "react-router-dom";
+ import { useAuth } from "../context/AuthContext";
+@@ -24,6 +25,7 @@ function Preview({ data, onDataChange, onCreateNew }) {
+   const [isEditing, setIsEditing] = useState(false);
+   const [editedData, setEditedData] = useState(data);
+   const [isSent, setIsSent] = useState("");
++  const [hasModifications, setHasModifications] = useState(false);
+   const navigate = useNavigate();
+   const { addQuiz } = useAuth();
+   const { addNotification } = useNotifications();
+@@ -32,6 +34,16 @@ function Preview({ data, onDataChange, onCreateNew }) {
+ 
+   // Update editedData when data prop changes
+   useEffect(() => {
++    console.log("­ƒæü´©Å [Preview] Received data:", data);
++    console.log("­ƒæü´©Å [Preview] Levels count:", data?.levels?.length);
++    data?.levels?.forEach((level, idx) => {
++      console.log(`  Level ${idx + 1}:`, {
++        level_type: level.level_type,
++        questionsCount: level.questions?.length || 0,
++        question: level.question || "N/A",
++        answersCount: level.answers?.length || 0,
++      });
++    });
+     setEditedData(data);
+   }, [data]);
+ 
+@@ -68,19 +80,62 @@ function Preview({ data, onDataChange, onCreateNew }) {
+     }));
+   };
+ 
++  // NOUVEAU : Supprimer une question Box
++  const handleDeleteQuestion = (levelIndex, questionIndex) => {
++    const newLevels = [...editedData.levels];
++    const level = newLevels[levelIndex];
++
++    // Emp├¬cher suppression si derni├¿re question
++    if (level.questions.length <= 1) {
++      notification.error("Il doit rester au moins 1 question par niveau !");
++      return;
++    }
++
++    // Supprimer la question
++    level.questions.splice(questionIndex, 1);
++
++    setEditedData((prev) => ({
++      ...prev,
++      levels: newLevels,
++    }));
++    setHasModifications(true);
++    notification.success("Question supprim├®e");
++  };
++
++  // NOUVEAU : Supprimer une suggestion Balloon
++  const handleDeleteAnswer = (levelIndex, answerIndex) => {
++    const newLevels = [...editedData.levels];
++    const level = newLevels[levelIndex];
++
++    // Emp├¬cher suppression si moins de 2 suggestions
++    if (level.answers.length <= 2) {
++      notification.error("Il doit rester au moins 2 suggestions !");
++      return;
++    }
++
++    // Supprimer la suggestion
++    level.answers.splice(answerIndex, 1);
++
++    setEditedData((prev) => ({
++      ...prev,
++      levels: newLevels,
++    }));
++    setHasModifications(true);
++    notification.success("Suggestion supprim├®e");
++  };
++
+   const handleSave = () => {
+     onDataChange(editedData);
+     setIsEditing(false);
++    setHasModifications(false);
+     // Save quiz to context
+     addQuiz(editedData);
+ 
+     // Add notification for saving quiz with specific details
+     addNotification(
+       t("preview.quizSaved") || "Quiz Saved",
+-      `${t("course_name") || "Course"}: ${editedData.course}, ${
+-        t("topic") || "Topic"
+-      }: ${editedData.topic}, ${t("game_number") || "Game"}: ${
+-        editedData.gameNumber
++      `${t("course_name") || "Course"}: ${editedData.course}, ${t("topic") || "Topic"
++      }: ${editedData.topic}, ${t("game_number") || "Game"}: ${editedData.gameNumber
+       } - ${t("preview.savedSuccessfully") || "saved successfully"}`,
+       "success"
+     );
+@@ -108,13 +163,10 @@ function Preview({ data, onDataChange, onCreateNew }) {
+         // Add notification for quiz creation with specific details
+         addNotification(
+           t("preview.quizCreated") || "Quiz Created",
+-          `${t("course_name") || "Course"}: ${editedData.course}, ${
+-            t("topic") || "Topic"
+-          }: ${editedData.topic}, ${t("game_number") || "Game"}: ${
+-            editedData.gameNumber
+-          } - ${
+-            t("preview.createdSuccessfully") ||
+-            "created and exported successfully"
++          `${t("course_name") || "Course"}: ${editedData.course}, ${t("topic") || "Topic"
++          }: ${editedData.topic}, ${t("game_number") || "Game"}: ${editedData.gameNumber
++          } - ${t("preview.createdSuccessfully") ||
++          "created and exported successfully"
+           }`,
+           "success"
+         );
+@@ -126,9 +178,8 @@ function Preview({ data, onDataChange, onCreateNew }) {
+         // Add notification for export failure with specific details
+         addNotification(
+           t("preview.exportFailed") || "Export Failed",
+-          `${t("course_name") || "Course"}: ${editedData.course} - ${
+-            t("preview.exportFailedMessage") ||
+-            "Failed to export quiz data to the server"
++          `${t("course_name") || "Course"}: ${editedData.course} - ${t("preview.exportFailedMessage") ||
++          "Failed to export quiz data to the server"
+           }`,
+           "error"
+         );
+@@ -140,9 +191,8 @@ function Preview({ data, onDataChange, onCreateNew }) {
+       // Add notification for export error with specific details
+       addNotification(
+         t("preview.exportError") || "Export Error",
+-        `${t("course_name") || "Course"}: ${editedData.course} - ${
+-          t("preview.exportErrorMessage") ||
+-          "An error occurred while exporting the quiz"
++        `${t("course_name") || "Course"}: ${editedData.course} - ${t("preview.exportErrorMessage") ||
++        "An error occurred while exporting the quiz"
+         }`,
+         "error"
+       );
+@@ -159,7 +209,7 @@ function Preview({ data, onDataChange, onCreateNew }) {
+     addNotification(
+       t("preview.newQuizStarted") || "New Quiz Started",
+       t("preview.newQuizStartedMessage") ||
+-        "You've started creating a new quiz. Fill in all required fields to complete the quiz.",
++      "You've started creating a new quiz. Fill in all required fields to complete the quiz.",
+       "info"
+     );
+ 
+@@ -204,11 +254,10 @@ function Preview({ data, onDataChange, onCreateNew }) {
+           </motion.button>
+           <motion.button
+             onClick={() => (isEditing ? handleSave() : setIsEditing(true))}
+-            className={`flex items-center justify-center gap-2 px-4 py-2 rounded-xl transition-all duration-200 ${
+-              isEditing
+-                ? "bg-yellow-main text-gray-900 hover:bg-yellow-main/80"
+-                : "bg-gray-200 text-gray-800 hover:bg-gray-300 dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-gray-600"
+-            }`}
++            className={`flex items-center justify-center gap-2 px-4 py-2 rounded-xl transition-all duration-200 ${isEditing
++              ? "bg-yellow-main text-gray-900 hover:bg-yellow-main/80"
++              : "bg-gray-200 text-gray-800 hover:bg-gray-300 dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-gray-600"
++              }`}
+             whileHover={{ scale: 1.02 }}
+             whileTap={{ scale: 0.98 }}
+           >
+@@ -227,6 +276,31 @@ function Preview({ data, onDataChange, onCreateNew }) {
+         </div>
+       </div>
+ 
++      {
++        hasModifications && (
++          <div className="mb-6 p-4 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-300 dark:border-yellow-700 rounded-lg">
++            <div className="flex items-center gap-2">
++              <svg
++                className="w-5 h-5 text-yellow-600 dark:text-yellow-400"
++                fill="none"
++                stroke="currentColor"
++                viewBox="0 0 24 24"
++              >
++                <path
++                  strokeLinecap="round"
++                  strokeLinejoin="round"
++                  strokeWidth={2}
++                  d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
++                />
++              </svg>
++              <p className="text-yellow-800 dark:text-yellow-200 font-medium">
++                ÔÜá´©Å {t("preview.unsavedChanges") || "Vous avez modifi├® le quiz g├®n├®r├®. N'oubliez pas de sauvegarder !"}
++              </p>
++            </div>
++          </div>
++        )
++      }
++
+       <div className="mb-6 p-4 bg-yellow-main/10 border-l-4 border-yellow-main rounded-r-lg">
+         <p className="text-yellow-main/90 font-medium">
+           ÔÜá´©Å {t("important")}: {t("please_review_all_content")}
+@@ -424,9 +498,8 @@ function Preview({ data, onDataChange, onCreateNew }) {
+                               );
+                             }
+                           }}
+-                          className={`ml-4 ${
+-                            isEditing ? "cursor-pointer" : "cursor-default"
+-                          }`}
++                          className={`ml-4 ${isEditing ? "cursor-pointer" : "cursor-default"
++                            }`}
+                         >
+                           {answer.is_true ? (
+                             <CheckCircle
+@@ -440,6 +513,15 @@ function Preview({ data, onDataChange, onCreateNew }) {
+                             />
+                           )}
+                         </button>
++                        {isEditing && (
++                          <button
++                            onClick={() => handleDeleteAnswer(index, aIndex)}
++                            className="ml-2 p-1 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded transition-colors"
++                            title={t("delete_option") || "Delete option"}
++                          >
++                            <Trash2 size={20} />
++                          </button>
++                        )}
+                       </motion.div>
+                     ))}
+                   </div>
+@@ -506,6 +588,17 @@ function Preview({ data, onDataChange, onCreateNew }) {
+                             </div>
+                           )}
+                         </div>
++                        {isEditing && (
++                          <div className="flex flex-col justify-center">
++                            <button
++                              onClick={() => handleDeleteQuestion(index, qIndex)}
++                              className="ml-2 p-2 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
++                              title={t("delete_question") || "Delete question"}
++                            >
++                              <Trash2 size={24} />
++                            </button>
++                          </div>
++                        )}
+                       </motion.div>
+                     ))}
+                   </div>
+@@ -515,8 +608,10 @@ function Preview({ data, onDataChange, onCreateNew }) {
+           </motion.div>
+         ))}
+       </div>
+-    </motion.div>
++    </motion.div >
+   );
+ }
+ 
+ export default Preview;
++
++
+diff --git a/tmp_github_clone/FrontEnd/src/components/QuizForm.jsx b/FrontEnd/src/components/QuizForm.jsx
+index e7bdd1d..28363bd 100644
+--- a/tmp_github_clone/FrontEnd/src/components/QuizForm.jsx
++++ b/FrontEnd/src/components/QuizForm.jsx
+@@ -1,6 +1,8 @@
+ import { useState } from 'react';
+ import LevelForm from './LevelForm';
+ import { FaPlay, FaGamepad } from 'react-icons/fa';
++import { Input } from './formQuizInputs/QuizInput';
++import { Select } from './formQuizInputs/QuizSelect';
+ 
+ function QuizForm({ onDataChange }) {
+   const [formData, setFormData] = useState({
+@@ -12,7 +14,7 @@ function QuizForm({ onDataChange }) {
+   });
+ 
+   const handleInputChange = (e) => {
+-    const { name, value } = e.target;
++    const { name, value } = e.target; // Destructure name and value from the event target
+     setFormData(prev => {
+       const newData = { ...prev, [name]: value };
+       onDataChange(newData);
+@@ -23,9 +25,9 @@ function QuizForm({ onDataChange }) {
+   const handleStart = (e) => {
+     e.preventDefault();
+     setFormData(prev => ({
+-      ...prev,
+-      levels: Array(parseInt(prev.numLevels)).fill().map(() => ({
+-        gameType: 'Boxes',
++      ...prev, // spead the previous form data
++      levels: Array(parseInt(prev.numLevels)).fill().map(() => ({ //note2
++        gameType: 'Boxes', // note1  !!!!
+         questions: []
+       }))
+     }));
+@@ -39,61 +41,41 @@ function QuizForm({ onDataChange }) {
+       </div>
+       
+       <div className="space-y-6">
+-        <div className="group">
+-          <label className="form-label">Course Name</label>
+-          <input
+-            type="text"
+-            name="course"
+-            value={formData.course}
+-            onChange={handleInputChange}
+-            className="input-field"
+-            placeholder="Enter course name"
+-          />
+-        </div>
+-
+-        <div className="group">
+-          <label className="form-label">Topic</label>
+-          <input
+-            type="text"
+-            name="topic"
+-            value={formData.topic}
+-            onChange={handleInputChange}
+-            className="input-field"
+-            placeholder="Enter topic"
+-          />
+-        </div>
+-
+-        <div className="group">
+-          <label className="form-label">Game Number</label>
+-          <input
++        <Input 
++            name="course" 
++            label="Course Name" 
++            value={formData.course} 
++            onChange={handleInputChange} 
++            placeholder="Enter course name"   
++        />
++        <Input 
++            name="topic" 
++            label="Topic" 
++            value={formData.topic} 
++            onChange={handleInputChange} 
++            placeholder="Enter topic"   
++        />
++        <Input 
+             type="number"
+             name="gameNumber"
++            label="Game Number" 
+             value={formData.gameNumber}
+-            onChange={handleInputChange}
+-            className="input-field"
++            onChange={handleInputChange} 
+             placeholder="Enter game number"
+-          />
+-        </div>
+-
+-        <div className="group">
+-          <label className="form-label">Number of Levels</label>
+-          <select
+-            name="numLevels"
+-            value={formData.numLevels}
+-            onChange={handleInputChange}
+-            className="input-field"
+-          >
+-            {[1, 2, 3, 4].map(num => (
+-              <option key={num} value={num}>{num}</option>
+-            ))}
+-          </select>
+-        </div>
++        />
++        <Select 
++          name="numLevels"
++          label="Number of Levels"
++          value={formData.numLevels}
++          onChange={handleInputChange}
++          levels={[1, 2, 3, 4]}
++        />
+ 
+         <button 
+           onClick={handleStart} 
+           className="btn-primary flex items-center justify-center gap-2"
+         >
+-          <FaPlay />
++        <FaPlay />
+           Start Creating
+         </button>
+       </div>
+@@ -105,7 +87,7 @@ function QuizForm({ onDataChange }) {
+           level={level}
+           onChange={(levelData) => {
+             const newLevels = [...formData.levels];
+-            newLevels[index] = levelData;
++            newLevels[index] = levelData;  // take the levelData from LevelForm and update the corresponding level in the levels array in formData 
+             setFormData(prev => {
+               const newData = { ...prev, levels: newLevels };
+               onDataChange(newData);
+@@ -118,4 +100,36 @@ function QuizForm({ onDataChange }) {
+   );
+ }
+ 
+-export default QuizForm;
+\ No newline at end of file
++export default QuizForm;
++
++
++/*
++  note1
++  default game type for each level , bose on the current implementation of LevelForm, it will be the default value for the gameType select input
++  key must change to `level_type` because in LevelForm we are using `useState(level.level_type`
++*/
++
++/*
++  note2 
++  for example if numLevels is 3, it will create an array of 3 levels 3 objects with the same properties
++  levels is based on numLevels entred
++*/
++
++/*
++  note3
++  the onChange function passed to LevelForm is used to update the levels array in formData whenever there is a change in the level data, it takes the levelData from LevelForm and updates the corresponding level in the levels array in formData, then it calls onDataChange with the updated formData to allow the parent component to get the updated form data
++*/
++
++/*
++  note4
++  onDataChange is a function passed as a prop to QuizForm, it is called whenever there is a change in the form data, it allows the parent component to get the updated form data and do something with it (like sending it to the backend or updating the state in the parent component)
++*/
++
++/*
++  data sheared between QuizForm and LevelForm:
++  - gameType: the type of game for each level, it is set to "Boxes" by default in QuizForm and can be changed in LevelForm
++  - questions: an array of questions for each level, it is initially empty in QuizForm and can be updated in LevelForm when the user adds questions
++  and 
++  between QuizForm and parrent component:
++  - formData: an object that contains all the data of the quiz
++*/
+\ No newline at end of file
+diff --git a/FrontEnd/src/components/formQuizInputs/QuizInput.jsx b/FrontEnd/src/components/formQuizInputs/QuizInput.jsx
+new file mode 100644
+index 0000000..f138058
+--- /dev/null
++++ b/FrontEnd/src/components/formQuizInputs/QuizInput.jsx
+@@ -0,0 +1,35 @@
++import { useId } from "react"
++import PropTypes from "prop-types"
++
++export function Input ({ name,label, value, onChange ,icon: Icon,placeholder ,type='text' }) {
++    const id = useId()
++    return (
++        <div className="group">
++            <label htmlFor={id} className="form-label flex items-center gap-2">
++                <Icon className="text-purple-main" size={18} />
++                    {label}
++            </label>
++            <input 
++                className="input-field"
++                type={type}
++                name={name}
++                id={id}
++                value={value}
++                onChange={onChange}
++                placeholder={placeholder}
++                required
++            />
++        </div>
++    )
++}
++
++Input.propTypes = {
++    name: PropTypes.string.isRequired,
++    label: PropTypes.string.isRequired,
++    value: PropTypes.string.isRequired,
++    onChange: PropTypes.func.isRequired,
++    placeholder: PropTypes.string,
++    type: PropTypes.string,
++    required: PropTypes.bool,
++    icon: PropTypes.elementType,
++}
+\ No newline at end of file
+diff --git a/FrontEnd/src/components/formQuizInputs/QuizSelect.jsx b/FrontEnd/src/components/formQuizInputs/QuizSelect.jsx
+new file mode 100644
+index 0000000..9d6e28a
+--- /dev/null
++++ b/FrontEnd/src/components/formQuizInputs/QuizSelect.jsx
+@@ -0,0 +1,36 @@
++import { useId } from "react"
++import PropTypes from "prop-types"
++
++export function Select ({ name,label, value, onChange,icon:Icon ,placeholder ,levels}) {
++    const id = useId()
++    return (
++        <div className="group">
++            <label htmlFor={id} className="form-label flex items-center gap-2">
++                <Icon className="text-purple-main" size={18} />
++                {label}
++            </label>
++            <select
++                className="input-field"
++                name={name} 
++                value={value}
++                id={id}
++                onChange={onChange}
++                // placeholder={placeholder}
++            >
++            {levels.map(num=>(
++                <option key={num} value={num}>{num}</option>
++            ))}
++            </select>
++        </div>
++    )
++}
++
++Select.propTypes = {
++    name: PropTypes.string.isRequired,
++    label: PropTypes.string.isRequired,
++    value: PropTypes.string.isRequired,
++    onChange: PropTypes.func.isRequired,
++    placeholder: PropTypes.string,
++    levels: PropTypes.arrayOf(PropTypes.number).isRequired,
++    icon: PropTypes.elementType.isRequired
++}
+\ No newline at end of file
+diff --git a/tmp_github_clone/FrontEnd/src/services/api.js b/FrontEnd/src/services/api.js
+index 734fc04..0ef582b 100644
+--- a/tmp_github_clone/FrontEnd/src/services/api.js
++++ b/FrontEnd/src/services/api.js
+@@ -1,6 +1,7 @@
+ import axios from "axios";
+ 
+ const API_URL = import.meta.env.VITE_API_URL || "http://localhost:8000/api";
++//this is the  VITE_API_URL=http://127.0.0.1:8000/api/
+ 
+ // Create axios instance with base URL
+ const api = axios.create({

@@ -93,103 +93,18 @@ function InitialForm({ onDataChange, onGoToPreview }) {
 
   //  ============================== AI Questions Handler ================================
   const handleAIQuestionsGenerated = (generatedData) => {
-    // generatedData format (BATCH mode):
-    // {
-    //   1: { gameType: "box", questions: [...] },
-    //   2: { gameType: "balloon", questions: [...] },
-    //   ...
-    // }
-    console.log("🤖 [InitialForm] Received AI-generated questions for ALL levels:", generatedData);
+    // generatedData format (BULK mode):
+    // { course: "...", topic: "...", gameNumber: 1, numLevels: 2, levels: [...], player_info: {...} }
+    console.log("🤖 [InitialForm] Received Bulk AI-generated questions:", generatedData);
 
     try {
-      // Start with current formData levels
-      let updatedLevels = [...formData.levels];
+      setFormData(generatedData);
+      onDataChange(generatedData);
+      toast.success("All levels generated successfully!");
 
-      // Process each level's generated data
-      Object.entries(generatedData).forEach(([levelNumber, levelData]) => {
-        const levelIndex = parseInt(levelNumber) - 1; // Convert to 0-based
+      // Auto-transition to preview
+      onGoToPreview();
 
-        console.log(
-          `🔍 [InitialForm] Processing Level ${levelNumber} (index ${levelIndex})`
-        );
-
-        // Validate level exists
-        if (levelIndex < 0 || levelIndex >= updatedLevels.length) {
-          console.warn(`⚠️ [InitialForm] Level ${levelNumber} not found in levels array`);
-          return;
-        }
-
-        // Extract data
-        const { gameType, questions } = levelData;
-
-        if (!gameType || !questions) {
-          console.warn(
-            `⚠️ [InitialForm] Level ${levelNumber} missing gameType or questions`
-          );
-          return;
-        }
-
-        console.log(
-          `📝 [InitialForm] Updating Level ${levelNumber}: gameType=${gameType}, questionsCount=${questions.length}`
-        );
-
-        // Keep existing level_stats
-        const existingLevel = updatedLevels[levelIndex];
-
-        // Apply to level
-        if (gameType === "box") {
-          // For box type: questions array with { text, answer }
-          console.log(
-            `📦 [InitialForm] Level ${levelNumber} processing BOX type with questions:`,
-            questions
-          );
-          updatedLevels[levelIndex] = {
-            ...existingLevel,
-            level_number: levelIndex + 1,
-            level_type: "box",
-            questions: questions,
-            level_stats: existingLevel.level_stats || {
-              coins: 0,
-              lifes: 5,
-              mistakes: 0,
-              stars: 1,
-              time_spent: 0,
-            },
-          };
-        } else if (gameType === "balloon") {
-          // For balloon type: single question with multiple answers (uses is_true field)
-          console.log(
-            `🎈 [InitialForm] Level ${levelNumber} processing BALLOON type with answers:`,
-            questions[0]?.answers
-          );
-          updatedLevels[levelIndex] = {
-            ...existingLevel,
-            level_number: levelIndex + 1,
-            level_type: "balloon",
-            question: questions[0]?.question || "",
-            answers: questions[0]?.answers || [],
-            level_stats: existingLevel.level_stats || {
-              coins: 0,
-              lifes: 5,
-              mistakes: 0,
-              stars: 1,
-              time_spent: 0,
-            },
-          };
-        }
-      });
-
-      // Update state with all levels at once
-      const updatedData = {
-        ...formData,
-        levels: updatedLevels,
-      };
-
-      console.log("✅ [InitialForm] All levels updated successfully:", updatedData);
-
-      setFormData(updatedData);
-      onDataChange(updatedData);
-      toast.success("All levels generated with questions successfully!");
     } catch (error) {
       console.error("❌ [InitialForm] Error processing generated questions:", error);
       toast.error("Error applying generated questions");
@@ -337,6 +252,7 @@ function InitialForm({ onDataChange, onGoToPreview }) {
               isOpen={true}
               onClose={() => setShowAIGenerator(false)}
               numLevels={parseInt(formData.numLevels || 2)}
+              quizData={formData}
               onQuestionsGenerated={handleAIQuestionsGenerated}
             />
           </motion.div>

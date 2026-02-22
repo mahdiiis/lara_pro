@@ -8,227 +8,284 @@ use Exception;
 
 class AIQuestionController extends Controller
 {
-    /**
-     * Generate questions using AI based on user prompt
-     */
     public function generateQuestions(Request $request)
     {
-        try {
-            \Log::info('🚀 [AIQuestion] Request received');
-            \Log::info('📋 Request data:', $request->all());
+        \Log::info('🚀 [AIQuestion] Bulk generation request received');
+        \Log::info('📋 Request data:', $request->all());
 
-            $validated = $request->validate([
-                'prompt'    => 'required|string|max:1000',
-                'game_type' => 'required|in:box,balloon',
-                'level'     => 'required|integer|min:1|max:10',
-            ]);
+        $validated = $request->validate([
+            'course'        => 'required|string|max:100',
+            'topic'         => 'required|string|max:100',
+            'gameNumber'    => 'required|integer|min:1',
+            'numLevels'     => 'required|integer|min:1|max:6',
+            'level_types'   => 'required|array',
+            'level_types.*' => 'required|in:box,balloon',
+            'ai_prompt'     => 'required|string|max:1000',
+        ]);
 
-            \Log::info('✅ [AIQuestion] Validation passed', $validated);
-
-            $questions = match ($validated['game_type']) {
-                'box'     => $this->generateBoxQuestions($validated['prompt']),
-                'balloon' => $this->generateBalloonQuestions($validated['prompt']),
-            };
-
-            \Log::info('🎉 [AIQuestion] Questions generated:', ['count' => count($questions)]);
-
-            return response()->json([
-                'success'   => true,
-                'questions' => $questions,
-                'message'   => 'Questions generated successfully',
-            ]);
-
-        } catch (\Illuminate\Validation\ValidationException $e) {
-            \Log::warning('❌ [AIQuestion] Validation failed:', $e->errors());
+        if (count($validated['level_types']) !== $validated['numLevels']) {
             return response()->json([
                 'success' => false,
-                'message' => 'Validation error',
-                'errors'  => $e->errors(),
+                'message' => 'Le nombre de types doit correspondre au nombre de niveaux'
             ], 422);
+        }
 
-        } catch (Exception $e) {
-            \Log::error('❌ [AIQuestion] Error: ' . $e->getMessage());
+        $numLevels = $validated['numLevels'];
+        $levelTypes = $validated['level_types'];
+
+        $systemPrompt = "Tu es un professeur de mathématiques expert du système scolaire MAROCAIN pour l'école primaire. Langage simple pour enfants 8-12 ans. Exemples concrets du quotidien marocain. TU RÉPONDS TOUJOURS EN JSON VALIDE UNIQUEMENT.";
+
+        $levelsDescription = "";
+        for ($i = 0; $i < $numLevels; $i++) {
+            $levelNum = $i + 1;
+            $type = $levelTypes[$i];
+            
+            if ($type === 'box') {
+                $levelsDescription .= "- Niveau {$levelNum} : TYPE BOX → 5 questions avec UNE réponse courte chacune\n";
+            } else {
+                $levelsDescription .= "- Niveau {$levelNum} : TYPE BALLOON → 1 question avec 10 réponses (vrai/faux)\n";
+            }
+        }
+
+       $userPrompt = "
+Le professeur demande : \"{$validated['ai_prompt']}\"
+
+INFORMATIONS :
+Cours : {$validated['course']}
+Sujet : {$validated['topic']}
+
+GÉNÈRE EXACTEMENT {$numLevels} NIVEAUX :
+{$levelsDescription}
+
+DIFFICULTÉ PROGRESSIVE :
+- Niveau 1 : facile
+- Niveau {$numLevels} : difficile
+
+IMPORTANT : Tu DOIS répondre avec UNIQUEMENT ce JSON, rien d'autre. Pas de texte avant, pas de texte après. Juste le JSON.
+
+Voici le format JSON EXACT que tu dois respecter (exemple pour 2 niveaux box et balloon) :
+
+{
+    \"levels\": [
+        {
+            \"level_number\": 1,
+            \"level_type\": \"box\",
+            \"level_stats\": {
+                \"coins\": 0,
+                \"lifes\": 5,
+                \"mistakes\": 0,
+                \"stars\": 1,
+                \"time_spent\": 0
+            },
+            \"questions\": [
+                {
+                    \"text\": \"Combien font 2 + 2 ?\",
+                    \"answer\": \"4\"
+                },
+                {
+                    \"text\": \"5 × 3 = ?\",
+                    \"answer\": \"15\"
+                },
+                {
+                    \"text\": \"10 ÷ 2 = ?\",
+                    \"answer\": \"5\"
+                },
+                // ... (génère les 2 autres questions ici pour faire exactement 5)
+            ]
+        },
+        {
+            \"level_number\": 2,
+            \"level_type\": \"balloon\",
+            \"level_stats\": {
+                \"coins\": 0,
+                \"lifes\": 5,
+                \"mistakes\": 0,
+                \"stars\": 1,
+                \"time_spent\": 0
+            },
+            \"question\": \"Quelle fraction représente la moitié ?\",
+            \"answers\": [
+                {
+                    \"text\": \"1/2\",
+                    \"is_true\": true
+                },
+                {
+                    \"text\": \"1/3\",
+                    \"is_true\": false
+                },
+                {
+                    \"text\": \"2/4\",
+                    \"is_true\": true
+                },
+                {
+                    \"text\": \"1/5\",
+                    \"is_true\": false
+                },
+                // ... (génère les 6 autres réponses ici pour faire exactement 10)
+            ]
+        }
+    ]
+}
+
+Génère maintenant les {$numLevels} niveaux demandés en suivant EXACTEMENT ce format.
+        ";
+
+        try {
+            $apiKey = env('GROQ_API_KEY');
+            
+            if (!$apiKey) {
+                \Log::warning('⚠️ GROQ_API_KEY is missing. Using fallback mock data.');
+                return $this->getMockBulkData($validated);
+            }
+
+            \Log::info('🌐 [AIQuestion] Calling Groq API matching user provided script...');
+            
+            $modelsToTry = [
+                'llama-3.1-8b-instant',
+                'llama-3.3-70b-versatile',
+                'mixtral-8x7b-32768'
+            ];
+
+            $response = null;
+            $usedModel = '';
+
+            foreach ($modelsToTry as $model) {
+                \Log::info("🔄 Trying Groq API with model: {$model}");
+                
+                $response = Http::withHeaders([
+                    'Authorization' => "Bearer {$apiKey}",
+                    'Content-Type'  => 'application/json',
+                ])->post('https://api.groq.com/openai/v1/chat/completions', [
+                    'model'       => $model,
+                    'messages'    => [
+                        ['role' => 'system', 'content' => $systemPrompt],
+                        ['role' => 'user', 'content' => $userPrompt]
+                    ],
+                    'temperature' => 0.7,
+                    'max_tokens'  => 3000,
+                ]);
+
+                if ($response->successful()) {
+                    $usedModel = $model;
+                    break; 
+                } else {
+                    $status = $response->status();
+                    $body = $response->body();
+                    \Log::warning("⚠️ Groq Model {$model} failed. Status: {$status}. Body: {$body}");
+                }
+            }
+
+            if (!$response || !$response->successful()) {
+                throw new \Exception('All Groq models failed or rate-limited.');
+            }
+
+            $result  = $response->json();
+            $content = $result['choices'][0]['message']['content'];
+            
+            \Log::info("RAW AI CONTENT ($usedModel):\n" . $content);
+
+            $content = preg_replace('/```json\s*|\s*```/', '', trim($content));
+            $aiData = json_decode($content, true);
+
+            if (!$aiData || !isset($aiData['levels'])) {
+                \Log::error("❌ Invalid JSON received: " . $content);
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Format JSON invalide reçu de l\'IA. Réessaie.'
+                ], 500);
+            }
+
+            if (count($aiData['levels']) !== $numLevels) {
+                \Log::warning("⚠️ L'IA a généré " . count($aiData['levels']) . " niveaux au lieu de {$numLevels}.");
+                return response()->json([
+                    'success' => false,
+                    'message' => "L'IA a généré " . count($aiData['levels']) . " niveaux au lieu de {$numLevels}."
+                ], 500);
+            }
+
+            \Log::info("✅ [AIQuestion] Successfully generated all levels.");
+
+            return response()->json([
+                'success' => true,
+                'data'    => [
+                    'course'      => $validated['course'],
+                    'topic'       => $validated['topic'],
+                    'gameNumber'  => $validated['gameNumber'],
+                    'numLevels'   => $validated['numLevels'],
+                    'levels'      => $aiData['levels'],
+                    'player_info' => [
+                        'current_level' => 1,
+                        'lives'         => 3,
+                        'score'         => 0
+                    ]
+                ]
+            ], 200);
+
+        } catch (\Exception $e) {
+            \Log::error('❌ [AIQuestion] Exception: ' . $e->getMessage());
             return response()->json([
                 'success' => false,
-                'message' => 'Failed to generate questions: ' . $e->getMessage(),
+                'message' => 'Erreur : ' . $e->getMessage()
             ], 500);
         }
     }
 
-    // ─────────────────────────────────────────────────────────────────────────
-    // Game-type dispatchers
-    // ─────────────────────────────────────────────────────────────────────────
-
-    private function generateBoxQuestions(string $prompt): array
+    private function getMockBulkData(array $validated): \Illuminate\Http\JsonResponse
     {
-        \Log::info('📦 [AIQuestion] Generating Box type questions');
-
-        $apiKey = env('GROQ_API_KEY');
-
-        if ($apiKey) {
-            \Log::info('🌐 [AIQuestion] Using Groq API');
-            return $this->callGroqAPI($prompt, 'box', $apiKey);
-        }
-
-        \Log::info('📋 [AIQuestion] No Groq key — using mock data');
-        return $this->getMockBoxQuestions($prompt);
-    }
-
-    private function generateBalloonQuestions(string $prompt): array
-    {
-        \Log::info('🎈 [AIQuestion] Generating Balloon type questions');
-
-        $apiKey = env('GROQ_API_KEY');
-
-        if ($apiKey) {
-            \Log::info('🌐 [AIQuestion] Using Groq API');
-            return $this->callGroqAPI($prompt, 'balloon', $apiKey);
-        }
-
-        \Log::info('📋 [AIQuestion] No Groq key — using mock data');
-        return $this->getMockBalloonQuestions($prompt);
-    }
-
-    // ─────────────────────────────────────────────────────────────────────────
-    // Groq API (OpenAI-compatible)
-    // ─────────────────────────────────────────────────────────────────────────
-
-    private function callGroqAPI(string $prompt, string $gameType, string $apiKey): array
-    {
-        // Models to try in order (each has its own quota)
-        $models = [
-            'llama-3.3-70b-versatile',
-            'llama-3.1-8b-instant',
-            'mixtral-8x7b-32768',
-        ];
-
-        foreach ($models as $model) {
-            $result = $this->callGroqModel($apiKey, $model, $prompt, $gameType);
-            if ($result !== null) {
-                return $result;
-            }
-            \Log::warning("⚠️ [Groq] Model $model failed — trying next...");
-        }
-
-        \Log::warning('⚠️ [Groq] All models exhausted — falling back to mock data');
-        return $gameType === 'box'
-            ? $this->getMockBoxQuestions($prompt)
-            : $this->getMockBalloonQuestions($prompt);
-    }
-
-    private function callGroqModel(string $apiKey, string $model, string $prompt, string $gameType): ?array
-    {
-        if ($gameType === 'box') {
-            $systemPrompt = 'You are an educational question generator. Always respond with ONLY valid JSON, no markdown, no explanation.';
-            $userPrompt   = 'Generate exactly 5 different educational questions with correct answers about: ' . $prompt
-                . '. Return ONLY this JSON format: {"questions": [{"text": "Question?", "answer": "Answer"}, ...]}';
-        } else {
-            $systemPrompt = 'You are an educational question generator. Always respond with ONLY valid JSON, no markdown, no explanation.';
-            $userPrompt   = 'Generate 1 multiple-choice question with exactly 4 answer options (only 1 correct) about: ' . $prompt
-                . '. Return ONLY this JSON format: {"question": "Question?", "answers": [{"text": "Option", "is_true": true}, {"text": "Option", "is_true": false}, ...]}';
-        }
-
-        try {
-            \Log::info("🌐 [Groq] Trying model: $model");
-
-            $response = Http::withHeaders([
-                'Authorization' => 'Bearer ' . $apiKey,
-                'Content-Type'  => 'application/json',
-            ])->post('https://api.groq.com/openai/v1/chat/completions', [
-                'model'       => $model,
-                'messages'    => [
-                    ['role' => 'system', 'content' => $systemPrompt],
-                    ['role' => 'user',   'content' => $userPrompt],
+        $levels = [];
+        for ($i = 0; $i < $validated['numLevels']; $i++) {
+            $type = $validated['level_types'][$i];
+            $levels[] = [
+                'level_number' => $i + 1,
+                'level_type' => $type,
+                'level_stats' => [
+                    'coins' => 0,
+                    'lifes' => 5,
+                    'mistakes' => 0,
+                    'stars' => 1,
+                    'time_spent' => 0
                 ],
-                'temperature' => 0.7,
-                'max_tokens'  => 1000,
-            ]);
-
-            \Log::info('📡 [Groq] Response status: ' . $response->status());
-
-            if ($response->successful()) {
-                $data    = $response->json();
-                $content = $data['choices'][0]['message']['content'] ?? null;
-
-                if (!$content) {
-                    \Log::warning('❌ [Groq] Empty content in response');
-                    return null;
-                }
-
-                \Log::info('📝 [Groq] Raw content: ' . substr($content, 0, 300));
-
-                // Strip markdown code fences if present
-                $content = preg_replace('/^```json\s*/i', '', trim($content));
-                $content = preg_replace('/\s*```$/', '', $content);
-                $content = trim($content);
-
-                $parsed = json_decode($content, true);
-
-                if (json_last_error() !== JSON_ERROR_NONE || !$parsed) {
-                    \Log::warning('❌ [Groq] JSON decode error: ' . json_last_error_msg());
-                    return null;
-                }
-
-                if ($gameType === 'box' && isset($parsed['questions'])) {
-                    \Log::info('📦 [Groq] Returning ' . count($parsed['questions']) . ' box questions');
-                    return $parsed['questions'];
-                }
-
-                if ($gameType === 'balloon' && isset($parsed['question'])) {
-                    \Log::info('🎈 [Groq] Returning balloon question');
-                    return [$parsed];
-                }
-
-                \Log::warning('❌ [Groq] Unexpected JSON structure: ' . json_encode($parsed));
-                return null;
-
-            } else {
-                \Log::warning("❌ [Groq] Model $model — HTTP " . $response->status());
-                \Log::warning('Response: ' . $response->body());
-                return null;
-            }
-
-        } catch (Exception $e) {
-            \Log::error("❌ [Groq] Model $model — Exception: " . $e->getMessage());
-            return null;
+                'questions' => $type === 'box' ? [
+                    ['text' => 'MOCK 1+1 ?', 'answer' => '2'],
+                    ['text' => 'MOCK 2+2 ?', 'answer' => '4'],
+                    ['text' => 'MOCK 3+3 ?', 'answer' => '6'],
+                    ['text' => 'MOCK 4+4 ?', 'answer' => '8'],
+                    ['text' => 'MOCK 5+5 ?', 'answer' => '10'],
+                ] : null,
+                'question' => $type === 'balloon' ? 'MOCK Quelle fraction représente la moitié ?' : null,
+                'answers' => $type === 'balloon' ? [
+                    ['text' => '1/2', 'is_true' => true],
+                    ['text' => '1/3', 'is_true' => false],
+                    ['text' => '2/4', 'is_true' => true],
+                    ['text' => '1/5', 'is_true' => false],
+                    ['text' => '2/5', 'is_true' => false],
+                    ['text' => '3/5', 'is_true' => false],
+                    ['text' => '4/5', 'is_true' => false],
+                    ['text' => '1/6', 'is_true' => false],
+                    ['text' => '2/6', 'is_true' => false],
+                    ['text' => '3/6', 'is_true' => true],
+                ] : null,
+            ];
+            
+            // Cleanup nulls so json is clean
+            $levels[$i] = array_filter($levels[$i], function($value) { return $value !== null; });
         }
-    }
 
-    // ─────────────────────────────────────────────────────────────────────────
-    // Mock data (fallback)
-    // ─────────────────────────────────────────────────────────────────────────
-
-    private function getMockBoxQuestions(string $prompt): array
-    {
-        \Log::info('🎭 [AIQuestion] Using MOCK data (Box Type)');
-        return [
-            ['text' => 'What is 2 + 2?',                                              'answer' => '4'],
-            ['text' => 'What is the square root of 16?',                              'answer' => '4'],
-            ['text' => 'Solve for x: 2x + 5 = 13',                                   'answer' => '4'],
-            ['text' => 'What is 10 × 3?',                                             'answer' => '30'],
-            ['text' => 'What is the area of a rectangle with length 5 and width 3?',  'answer' => '15'],
-        ];
-    }
-
-    private function getMockBalloonQuestions(string $prompt): array
-    {
-        \Log::info('🎭 [AIQuestion] Using MOCK data (Balloon Type)');
-        return [
-            [
-                'question' => 'What is 5 + 3?',
-                'answers'  => [
-                    ['text' => '6',  'is_true' => false],
-                    ['text' => '7',  'is_true' => false],
-                    ['text' => '8',  'is_true' => true],
-                    ['text' => '9',  'is_true' => false],
-                    ['text' => '10', 'is_true' => false],
-                    ['text' => '11', 'is_true' => false],
-                    ['text' => '12', 'is_true' => false],
-                    ['text' => '13', 'is_true' => false],
-                    ['text' => '14', 'is_true' => false],
-                    ['text' => '15', 'is_true' => false],
-                ],
-            ],
-        ];
+        return response()->json([
+            'success' => true,
+            'message' => 'Mocked data (No API Key)',
+            'data' => [
+                'course' => $validated['course'],
+                'topic' => $validated['topic'],
+                'gameNumber' => $validated['gameNumber'],
+                'numLevels' => $validated['numLevels'],
+                'levels' => $levels,
+                'player_info' => [
+                    'current_level' => 1,
+                    'lives' => 3,
+                    'score' => 0
+                ]
+            ]
+        ], 200);
     }
 }

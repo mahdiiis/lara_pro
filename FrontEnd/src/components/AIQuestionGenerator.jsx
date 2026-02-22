@@ -16,7 +16,7 @@ import axios from "axios";
  *   - onQuestionsGenerated: function - Callback when all questions are generated
  */
 
-function AIQuestionGenerator({ isOpen, onClose, numLevels, onQuestionsGenerated }) {
+function AIQuestionGenerator({ isOpen, onClose, numLevels, quizData, onQuestionsGenerated }) {
   const { t } = useLanguage();
 
   // Form state: game types for each level + shared prompt
@@ -66,12 +66,17 @@ function AIQuestionGenerator({ isOpen, onClose, numLevels, onQuestionsGenerated 
   };
 
   /**
-   * Generate questions for ALL levels at once
+   * Generate questions for ALL levels at once using Bulk API
    */
   const handleGenerateAllQuestions = async () => {
     // Validation
     if (!prompt.trim()) {
       toast.error(t("enter_prompt") || "Please enter a prompt");
+      return;
+    }
+
+    if (!quizData?.course || !quizData?.topic || !quizData?.gameNumber) {
+      toast.error("Please fill Course, Topic, and Game Number on the form first.");
       return;
     }
 
@@ -86,9 +91,7 @@ function AIQuestionGenerator({ isOpen, onClose, numLevels, onQuestionsGenerated 
     }
 
     setIsGenerating(true);
-    console.log("🚀 [AIQuestionGenerator] Generating for all levels...");
-    console.log("📊 Level Game Types:", levelGameTypes);
-    console.log("📝 Prompt:", prompt);
+    console.log("🚀 [AIQuestionGenerator] Generating in BUG BULK MODE...");
 
     try {
       const apiUrl = import.meta.env.VITE_API_URL || "http://localhost:8000/api/";
@@ -100,71 +103,51 @@ function AIQuestionGenerator({ isOpen, onClose, numLevels, onQuestionsGenerated 
         return;
       }
 
-      // Generate questions for each level
-      const generatedQuestionsPerLevel = {};
-      let successCount = 0;
-
-      for (let levelNumber = 1; levelNumber <= numLevels; levelNumber++) {
-        const gameType = levelGameTypes[levelNumber];
-
-        console.log(`🔄 [AIQuestionGenerator] Generating Level ${levelNumber} (${gameType})...`);
-
-        try {
-          const response = await axios.post(
-            `${apiUrl}generate-questions`,
-            {
-              prompt: prompt,
-              game_type: gameType,
-              level: levelNumber,
-            },
-            {
-              headers: {
-                Authorization: `Bearer ${token}`,
-              },
-            }
-          );
-
-          if (response.status === 200 && response.data.success) {
-            console.log(`✅ [AIQuestionGenerator] Level ${levelNumber} generated successfully`);
-            generatedQuestionsPerLevel[levelNumber] = {
-              gameType,
-              questions: response.data.questions,
-            };
-            successCount++;
-          } else {
-            console.error(
-              `❌ [AIQuestionGenerator] Level ${levelNumber} failed:`,
-              response.data
-            );
-            toast.error(`Failed to generate questions for Level ${levelNumber}`);
-          }
-        } catch (error) {
-          console.error(`❌ [AIQuestionGenerator] Error generating Level ${levelNumber}:`, error);
-          toast.error(`Error generating questions for Level ${levelNumber}`);
-        }
+      // Convert levelGameTypes object to a simple array in order
+      const levelTypesArray = [];
+      for (let i = 1; i <= numLevels; i++) {
+        levelTypesArray.push(levelGameTypes[i]);
       }
 
-      // Check results
-      if (successCount === numLevels) {
-        console.log("🎉 [AIQuestionGenerator] All levels generated successfully!");
-        console.log("📦 Generated Questions:", generatedQuestionsPerLevel);
+      // Prepare bulk payload matching AIQuestionController expectation
+      const payload = {
+        course: quizData.course,
+        topic: quizData.topic,
+        gameNumber: parseInt(quizData.gameNumber, 10),
+        numLevels: numLevels,
+        level_types: levelTypesArray,
+        ai_prompt: prompt
+      };
 
-        // Call parent callback with all generated data
-        onQuestionsGenerated(generatedQuestionsPerLevel);
+      console.log("📦 Sending Bulk Payload:", payload);
 
-        toast.success(
-          t("questions_generated") || `All ${numLevels} levels generated successfully!`
-        );
+      const response = await axios.post(
+        `${apiUrl}generate-questions`,
+        payload,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json"
+          },
+        }
+      );
+
+      if (response.status === 200 && response.data.success) {
+        console.log("🎉 [AIQuestionGenerator] Bulk generation successful!", response.data.data);
+        toast.success(t("questions_generated") || `All ${numLevels} levels generated successfully!`);
+
+        // Pass the fully structured JSON data up to the parent
+        onQuestionsGenerated(response.data.data);
         handleClose();
       } else {
-        console.warn(
-          `⚠️ [AIQuestionGenerator] Only ${successCount}/${numLevels} levels were generated`
-        );
-        toast.error(`Only ${successCount} out of ${numLevels} levels were generated`);
+        console.error("❌ [AIQuestionGenerator] API Error:", response.data);
+        toast.error(response.data.message || "Failed to generate questions. Please try again.");
       }
+
     } catch (error) {
-      console.error("❌ [AIQuestionGenerator] Unexpected error:", error);
-      toast.error(error.message || "An unexpected error occurred");
+      const errMsg = error.response?.data?.message || error.message || "An unexpected error occurred";
+      console.error("❌ [AIQuestionGenerator] Network or Server Error:", errMsg);
+      toast.error(`Error: ${errMsg}`);
     } finally {
       setIsGenerating(false);
     }
@@ -221,11 +204,10 @@ function AIQuestionGenerator({ isOpen, onClose, numLevels, onQuestionsGenerated 
                     <motion.button
                       type="button"
                       onClick={() => handleGameTypeChange(levelNumber, "box")}
-                      className={`px-3 py-1 rounded-lg transition-all duration-200 flex items-center gap-1 text-xs font-medium ${
-                        levelGameTypes[levelNumber] === "box"
+                      className={`px-3 py-1 rounded-lg transition-all duration-200 flex items-center gap-1 text-xs font-medium ${levelGameTypes[levelNumber] === "box"
                           ? "bg-gradient-to-r from-purple-deep to-purple-main text-white shadow-md"
                           : "bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600"
-                      }`}
+                        }`}
                       whileHover={{ scale: 1.05 }}
                       whileTap={{ scale: 0.95 }}
                     >
@@ -237,11 +219,10 @@ function AIQuestionGenerator({ isOpen, onClose, numLevels, onQuestionsGenerated 
                     <motion.button
                       type="button"
                       onClick={() => handleGameTypeChange(levelNumber, "balloon")}
-                      className={`px-3 py-1 rounded-lg transition-all duration-200 flex items-center gap-1 text-xs font-medium ${
-                        levelGameTypes[levelNumber] === "balloon"
+                      className={`px-3 py-1 rounded-lg transition-all duration-200 flex items-center gap-1 text-xs font-medium ${levelGameTypes[levelNumber] === "balloon"
                           ? "bg-gradient-to-r from-orange-main to-orange-deep text-white shadow-md"
                           : "bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600"
-                      }`}
+                        }`}
                       whileHover={{ scale: 1.05 }}
                       whileTap={{ scale: 0.95 }}
                     >
