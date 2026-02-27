@@ -4,6 +4,7 @@ import { Sparkles, X, Loader, Package, Layers } from "lucide-react";
 import { useLanguage } from "../hooks/useLanguage";
 import toast from "react-hot-toast";
 import axios from "axios";
+import SourceInputPanel from "./SourceInputPanel";
 
 /**
  * AIQuestionGenerator Component - REDESIGNED
@@ -23,13 +24,14 @@ function AIQuestionGenerator({ isOpen, onClose, numLevels, quizData, onQuestions
   const [levelGameTypes, setLevelGameTypes] = useState(
     Array(numLevels)
       .fill()
-      .reduce((acc, _, i) => {
-        acc[i + 1] = "box"; // Default to "box"
+      .reduce((acc, _, i) => { // reduce is used to create an object with keys from 1 to numLevels
+        acc[i + 1] = "box"; // Default to "box" // acc[i + 1] is the key of the object, which is the level number (1, 2, 3, etc.) // acc is the accumulator, which is the object that is being built
         return acc;
-      }, {})
+      }, {}) // {} is the initial value of the accumulator
   );
 
   const [prompt, setPrompt] = useState("");
+  const [sourceText, setSourceText] = useState(""); // Extracted text from file or URL
   const [isGenerating, setIsGenerating] = useState(false);
 
   /**
@@ -47,6 +49,7 @@ function AIQuestionGenerator({ isOpen, onClose, numLevels, quizData, onQuestions
    */
   const resetForm = () => {
     setPrompt("");
+    setSourceText("");
     setLevelGameTypes(
       Array(numLevels)
         .fill()
@@ -69,9 +72,9 @@ function AIQuestionGenerator({ isOpen, onClose, numLevels, quizData, onQuestions
    * Generate questions for ALL levels at once using Bulk API
    */
   const handleGenerateAllQuestions = async () => {
-    // Validation
-    if (!prompt.trim()) {
-      toast.error(t("enter_prompt") || "Please enter a prompt");
+    // Validation: need at least a prompt OR extracted source text
+    if (!prompt.trim() && !sourceText.trim()) {
+      toast.error(t("enter_prompt") || "Please enter a prompt or provide a source (file/URL)");
       return;
     }
 
@@ -82,8 +85,8 @@ function AIQuestionGenerator({ isOpen, onClose, numLevels, quizData, onQuestions
 
     // Check if all levels have game types selected
     const allLevelsConfigured = Array.from({ length: numLevels }, (_, i) => i + 1).every(
-      (levelNum) => levelGameTypes[levelNum]
-    );
+      (levelNum) => levelGameTypes[levelNum]  // .from  is used to create an array of level numbers from 1 to numLevels
+    );                                        // .every is used to check if all levels have game types selected
 
     if (!allLevelsConfigured) {
       toast.error("Please select a game type for all levels");
@@ -94,8 +97,8 @@ function AIQuestionGenerator({ isOpen, onClose, numLevels, quizData, onQuestions
     console.log("🚀 [AIQuestionGenerator] Generating in BUG BULK MODE...");
 
     try {
-      const apiUrl = import.meta.env.VITE_API_URL || "http://localhost:8000/api/";
-      const token = localStorage.getItem("token") || sessionStorage.getItem("token");
+      const apiUrl = import.meta.env.VITE_API_URL || "http://localhost:8000/api/"; // here where the API URL is defined (the backend URL) 
+      const token = localStorage.getItem("token") || sessionStorage.getItem("token"); // here where the token is defined (the token) . token is a string that is used to authenticate the user
 
       if (!token) {
         toast.error("Authentication required. Please log in.");
@@ -106,7 +109,7 @@ function AIQuestionGenerator({ isOpen, onClose, numLevels, quizData, onQuestions
       // Convert levelGameTypes object to a simple array in order
       const levelTypesArray = [];
       for (let i = 1; i <= numLevels; i++) {
-        levelTypesArray.push(levelGameTypes[i]);
+        levelTypesArray.push(levelGameTypes[i]); // levelTypesArray is like ["box", "box", "box", "box"] for 4 levels
       }
 
       // Prepare bulk payload matching AIQuestionController expectation
@@ -116,7 +119,8 @@ function AIQuestionGenerator({ isOpen, onClose, numLevels, quizData, onQuestions
         gameNumber: parseInt(quizData.gameNumber, 10),
         numLevels: numLevels,
         level_types: levelTypesArray,
-        ai_prompt: prompt
+        ai_prompt: prompt.trim() || "Generate questions based on the provided source material.",
+        ...(sourceText.trim() && { source_text: sourceText.trim() }),
       };
 
       console.log("📦 Sending Bulk Payload:", payload);
@@ -205,8 +209,8 @@ function AIQuestionGenerator({ isOpen, onClose, numLevels, quizData, onQuestions
                       type="button"
                       onClick={() => handleGameTypeChange(levelNumber, "box")}
                       className={`px-3 py-1 rounded-lg transition-all duration-200 flex items-center gap-1 text-xs font-medium ${levelGameTypes[levelNumber] === "box"
-                          ? "bg-gradient-to-r from-purple-deep to-purple-main text-white shadow-md"
-                          : "bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600"
+                        ? "bg-gradient-to-r from-purple-deep to-purple-main text-white shadow-md"
+                        : "bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600"
                         }`}
                       whileHover={{ scale: 1.05 }}
                       whileTap={{ scale: 0.95 }}
@@ -220,8 +224,8 @@ function AIQuestionGenerator({ isOpen, onClose, numLevels, quizData, onQuestions
                       type="button"
                       onClick={() => handleGameTypeChange(levelNumber, "balloon")}
                       className={`px-3 py-1 rounded-lg transition-all duration-200 flex items-center gap-1 text-xs font-medium ${levelGameTypes[levelNumber] === "balloon"
-                          ? "bg-gradient-to-r from-orange-main to-orange-deep text-white shadow-md"
-                          : "bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600"
+                        ? "bg-gradient-to-r from-orange-main to-orange-deep text-white shadow-md"
+                        : "bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600"
                         }`}
                       whileHover={{ scale: 1.05 }}
                       whileTap={{ scale: 0.95 }}
@@ -239,18 +243,16 @@ function AIQuestionGenerator({ isOpen, onClose, numLevels, quizData, onQuestions
           </p>
         </motion.div>
 
-        {/* STEP 2: Enter Prompt */}
+        {/* STEP 2: Source Input (Tabbed: Prompt / File / URL) */}
         <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }}>
-          <label className="form-label">{t("enter_prompt")}</label>
-          <textarea
-            value={prompt}
-            onChange={(e) => setPrompt(e.target.value)}
-            placeholder="e.g., Generate 5 questions about quadratic equations. This prompt will be used for all levels."
-            className="input-field w-full h-20 resize-none text-sm"
+          <label className="form-label mb-2">Source for Questions</label>
+          <SourceInputPanel
+            prompt={prompt}
+            onPromptChange={setPrompt}
+            sourceText={sourceText}
+            onSourceReady={setSourceText}
+            onClearSource={() => setSourceText("")}
           />
-          <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
-            💡 {t("be_specific_for_better_results") || "Be specific for better results"}
-          </p>
         </motion.div>
 
         {/* Summary */}
@@ -273,10 +275,10 @@ function AIQuestionGenerator({ isOpen, onClose, numLevels, quizData, onQuestions
       <motion.button
         type="button"
         onClick={handleGenerateAllQuestions}
-        disabled={isGenerating || !prompt.trim()}
+        disabled={isGenerating || (!prompt.trim() && !sourceText.trim())}
         className="btn-primary w-full flex items-center justify-center gap-2 mt-6 disabled:opacity-50 disabled:cursor-not-allowed"
-        whileHover={{ scale: isGenerating || !prompt.trim() ? 1 : 1.02 }}
-        whileTap={{ scale: isGenerating || !prompt.trim() ? 1 : 0.98 }}
+        whileHover={{ scale: isGenerating || (!prompt.trim() && !sourceText.trim()) ? 1 : 1.02 }}
+        whileTap={{ scale: isGenerating || (!prompt.trim() && !sourceText.trim()) ? 1 : 0.98 }}
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
       >

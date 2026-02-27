@@ -1,0 +1,125 @@
+# Sprint-2: Source Input Feature
+
+Add a "Source Input" capability to the AI Quiz Generator so teachers can provide external context (uploaded file or a URL) that the AI will base the quiz on — instead of relying solely on a free-text prompt.
+
+## Tech Stack Confirmed
+- **Frontend**: React + Vite + TailwindCSS + Framer Motion
+- **Backend**: Laravel 11 + Groq API (llama models)
+- **Current flow**: [InitialForm](file:///c:/Users/Usuario/Desktop/2Pi_Teacher_Dashboard-main%20-%20working%20_%20AI_Nopreview/FrontEnd/src/components/InitialForm.jsx#19-266) → [AIQuestionGenerator](file:///c:/Users/Usuario/Desktop/2Pi_Teacher_Dashboard-main%20-%20working%20_%20AI_Nopreview/FrontEnd/src/components/AIQuestionGenerator.jsx#19-298) → `POST /api/generate-questions` → [AIQuestionController](file:///c:/Users/Usuario/Desktop/2Pi_Teacher_Dashboard-main%20-%20working%20_%20AI_Nopreview/BackEnd/app/Http/Controllers/AIQuestionController.php#9-292)
+
+---
+
+## Proposed Changes
+
+### Backend — New Dependencies
+
+Install via Composer:
+```
+smalot/pdfparser        → Extract text from PDF files
+phpoffice/phpword        → Extract text from DOCX files  
+symfony/dom-crawler      → Parse/clean HTML from URLs
+```
+> Note: `guzzlehttp/guzzle` is already present in [composer.json](file:///c:/Users/Usuario/Desktop/2Pi_Teacher_Dashboard-main%20-%20working%20_%20AI_Nopreview/BackEnd/composer.json).
+
+---
+
+### Backend — New Controller
+
+#### [NEW] SourceInputController.php
+`app/Http/Controllers/SourceInputController.php`
+
+Two public methods:
+1. **`extractFromFile(Request $request)`**
+   - Accepts multipart upload: field `file`, accepts [.txt](file:///c:/Users/Usuario/Desktop/2Pi_Teacher_Dashboard-main%20-%20working%20_%20AI_Nopreview/diff_output.txt), `.pdf`, `.docx`
+   - Max size: 5 MB
+   - Dispatches to parser by mime type
+   - Returns `{ success: true, text: "..." }` or error JSON
+
+2. **`extractFromUrl(Request $request)`**
+   - Accepts JSON body: `{ url: "https://..." }`
+   - Uses Guzzle to fetch content (10s timeout)
+   - Uses `symfony/dom-crawler` to strip nav/ads/scripts — keeps `<p>`, `<h1>`–`<h6>`, `<li>` text
+   - Truncates to 6000 chars (within AI token limits)
+   - Returns `{ success: true, text: "..." }` or error JSON
+
+---
+
+### Backend — Routes
+
+#### [MODIFY] api.php
+Add two new protected routes:
+```php
+Route::post('/extract-file', [SourceInputController::class, 'extractFromFile'])->middleware('auth:sanctum');
+Route::post('/extract-url',  [SourceInputController::class, 'extractFromUrl'])->middleware('auth:sanctum');
+```
+
+---
+
+### Backend — AI Prompt Update
+
+#### [MODIFY] AIQuestionController.php
+- Add optional field `source_text` to the validation (nullable string, max 8000 chars)
+- If `source_text` is provided, prepend it to `$userPrompt`:
+```
+"Lis attentivement ce texte source fourni par le professeur et génère tes questions STRICTEMENT à partir de ce contenu:\n\n{source_text}\n\n---\n\nLe professeur demande: ..."
+```
+
+---
+
+### Frontend — New Component
+
+#### [NEW] SourceInputPanel.jsx
+`src/components/SourceInputPanel.jsx`
+
+A self-contained panel with three tabs:
+| Tab | Content |
+|-----|---------|
+| 📝 Text Prompt | Current textarea (no change to UX) |
+| 📄 Upload File | Drag-and-drop zone + file button (.pdf/.txt/.docx, max 5MB). Shows file name + "Extract" button. Loading spinner while calling `/api/extract-file`. Displays extracted text preview (collapsible). |
+| 🔗 Paste Link | URL `<input>` + "Fetch" button. Calls `/api/extract-url`. Same loading/preview pattern. |
+
+State managed internally; exposes `onSourceReady(text)` callback to parent.
+
+---
+
+### Frontend — Update AIQuestionGenerator
+
+#### [MODIFY] AIQuestionGenerator.jsx
+- Import and render `<SourceInputPanel>` above the prompt textarea (replaces the current plain textarea with a tabbed input)
+- Store `sourceText` in state (returned by the panel's `onSourceReady` callback)
+- When prompt is empty but `sourceText` is set, allow generation (validation update)
+- Pass `source_text: sourceText` in the Axios payload to `/api/generate-questions`
+
+---
+
+## Verification Plan
+
+### Manual Testing (step-by-step)
+
+> **Prerequisites**: Both servers running (`npm run dev` + `php artisan serve`). Logged in as a teacher.
+
+**Test 1 – File Upload (TXT)**
+1. Click "Generate Quiz with AI" on the form.
+2. In the AI panel, click the **"Upload File"** tab.
+3. Upload a [.txt](file:///c:/Users/Usuario/Desktop/2Pi_Teacher_Dashboard-main%20-%20working%20_%20AI_Nopreview/diff_output.txt) file containing a paragraph about math.
+4. Click "Extract". Verify a text preview appears below the drop zone.
+5. Click "Generate All Questions". Verify the quiz is generated with questions related to the [.txt](file:///c:/Users/Usuario/Desktop/2Pi_Teacher_Dashboard-main%20-%20working%20_%20AI_Nopreview/diff_output.txt) content.
+
+**Test 2 – File Upload (PDF)**
+Same as Test 1 but with a PDF file.
+
+**Test 3 – URL Input**
+1. In the AI panel, click the **"Paste Link"** tab.
+2. Paste a public URL (e.g., a Wikipedia article about fractions).
+3. Click "Fetch". Verify extracted text appears.
+4. Click "Generate All Questions". Verify questions are based on the URL content.
+
+**Test 4 – Error Handling**
+- Upload a `.jpg` file → expect "Unsupported file type" error toast.
+- Paste an invalid/broken URL → expect "URL not accessible" error toast.
+- Upload a file > 5MB → expect "File too large" error toast.
+
+**Test 5 – Classic text prompt still works**
+1. Click **"Text Prompt"** tab.
+2. Type a prompt as before.
+3. Generate quiz. Verify normal behaviour is unaffected.

@@ -54,9 +54,9 @@ function Preview({ data, onDataChange, onCreateNew }) {
     }));
   };
 
-  const handleQuestionChange = (levelIndex, questionIndex, field, value) => {
+  const handleQuestionChange = (levelIndex, questionIndex, field, value) => {  //handleQuestionChange(index, 0,"question",e.target.value)
     const newLevels = [...editedData.levels];
-    const level = newLevels[levelIndex];
+    const level = newLevels[levelIndex]; // here i'm targeting the level  
 
     if (level.level_type === "balloon") {
       if (field === "question") {
@@ -92,7 +92,7 @@ function Preview({ data, onDataChange, onCreateNew }) {
     }
 
     // Supprimer la question
-    level.questions.splice(questionIndex, 1);
+    level.questions.splice(questionIndex, 1); // here i'm targeting the question to delete delate 1 question with index questionIndex
 
     setEditedData((prev) => ({
       ...prev,
@@ -131,7 +131,7 @@ function Preview({ data, onDataChange, onCreateNew }) {
     // Save quiz to context
     addQuiz(editedData);
 
-    // Add notification for saving quiz with specific details
+    // Add notification for saving quiz with specific details 
     addNotification(
       t("preview.quizSaved") || "Quiz Saved",
       `${t("course_name") || "Course"}: ${editedData.course}, ${t("topic") || "Topic"
@@ -233,8 +233,8 @@ function Preview({ data, onDataChange, onCreateNew }) {
           </h2>
         </div>
         <div className="flex gap-3">
-          <motion.button
-            onClick={handleExportJSON}
+          <motion.button  
+            onClick={handleExportJSON}                                                // =====
             className="btn-secondary flex items-center justify-center gap-2 px-4 py-2"
             whileHover={{ scale: 1.02 }}
             whileTap={{ scale: 0.98 }}
@@ -244,7 +244,7 @@ function Preview({ data, onDataChange, onCreateNew }) {
           </motion.button>
 
           <motion.button
-            onClick={handleCreateNew}
+            onClick={handleCreateNew}                                               // =====
             className="btn-primary flex items-center justify-center gap-2 px-4 py-2"
             whileHover={{ scale: 1.02 }}
             whileTap={{ scale: 0.98 }}
@@ -253,7 +253,7 @@ function Preview({ data, onDataChange, onCreateNew }) {
             {t("create_new_quiz")}
           </motion.button>
           <motion.button
-            onClick={() => (isEditing ? handleSave() : setIsEditing(true))}
+            onClick={() => (isEditing ? handleSave() : setIsEditing(true))}         // =====
             className={`flex items-center justify-center gap-2 px-4 py-2 rounded-xl transition-all duration-200 ${isEditing
               ? "bg-yellow-main text-gray-900 hover:bg-yellow-main/80"
               : "bg-gray-200 text-gray-800 hover:bg-gray-300 dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-gray-600"
@@ -321,7 +321,7 @@ function Preview({ data, onDataChange, onCreateNew }) {
               <input
                 type="text"
                 value={editedData.course}
-                onChange={(e) => handleInputChange("course", e.target.value)}
+                onChange={(e) => handleInputChange("course", e.target.value)}                 // =====
                 className="input-field mt-1"
               />
             ) : (
@@ -342,7 +342,7 @@ function Preview({ data, onDataChange, onCreateNew }) {
               <input
                 type="text"
                 value={editedData.topic}
-                onChange={(e) => handleInputChange("topic", e.target.value)}
+                onChange={(e) => handleInputChange("topic", e.target.value)}            // =====
                 className="input-field mt-1"
               />
             ) : (
@@ -365,7 +365,7 @@ function Preview({ data, onDataChange, onCreateNew }) {
                 value={editedData.gameNumber}
                 onChange={(e) =>
                   handleInputChange("gameNumber", e.target.value)
-                }
+                } // =====
                 className="input-field mt-1"
               />
             ) : (
@@ -443,8 +443,8 @@ function Preview({ data, onDataChange, onCreateNew }) {
                       type="text"
                       value={level.question}
                       onChange={(e) =>
-                        handleQuestionChange(
-                          index,
+                        handleQuestionChange(                                   // =====
+                          index, 
                           0,
                           "question",
                           e.target.value
@@ -515,7 +515,7 @@ function Preview({ data, onDataChange, onCreateNew }) {
                         </button>
                         {isEditing && (
                           <button
-                            onClick={() => handleDeleteAnswer(index, aIndex)}
+                            onClick={() => handleDeleteAnswer(index, aIndex)}                                       // =====
                             className="ml-2 p-1 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded transition-colors"
                             title={t("delete_option") || "Delete option"}
                           >

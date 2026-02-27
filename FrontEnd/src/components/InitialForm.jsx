@@ -111,6 +111,49 @@ function InitialForm({ onDataChange, onGoToPreview }) {
     }
   };
 
+  //  ============================== AI Button Handler ================================
+  function handleAiButton() {
+    if (!formData.numLevels) {
+      toast.error(t("select_number_of_levels") || "Please select the number of levels");
+      return;
+    }
+
+    // Create levels if they don't exist
+    if (formData.levels.length === 0) {
+      const numLevels = parseInt(formData.numLevels, 10);
+      const newLevels = Array(numLevels)
+        .fill()
+        .map((_, index) => ({
+          level_number: index + 1,
+          level_type: "box",
+          level_stats: {
+            coins: 0,
+            lifes: 5,
+            mistakes: 0,
+            stars: 1,
+            time_spent: 0,
+          },
+          questions: [],
+        }));
+
+      const updatedData = {
+        ...formData,
+        levels: newLevels,
+        player_info: {
+          current_level: 1,
+          lives: 3,
+          score: 0,
+        },
+      };
+
+      setFormData(updatedData);
+      onDataChange(updatedData);
+    }
+
+    // Open AI generator panel
+    setShowAIGenerator(true);
+  }
+
   return (
     <div className="w-full min-h-screen flex items-center justify-center">
       <div className={`flex gap-8 w-full mx-auto px-4 transition-all duration-300 ${showAIGenerator ? "max-w-5xl" : "max-w-3xl"}`}>
@@ -186,48 +229,7 @@ function InitialForm({ onDataChange, onGoToPreview }) {
 
               <motion.button
                 type="button"
-                onClick={() => {
-                  // Validate form before opening AI
-                  if (!formData.numLevels) {
-                    toast.error(t("select_number_of_levels") || "Please select the number of levels");
-                    return;
-                  }
-
-                  // Create levels if they don't exist
-                  if (formData.levels.length === 0) {
-                    const numLevels = parseInt(formData.numLevels, 10);
-                    const newLevels = Array(numLevels)
-                      .fill()
-                      .map((_, index) => ({
-                        level_number: index + 1,
-                        level_type: "box",
-                        level_stats: {
-                          coins: 0,
-                          lifes: 5,
-                          mistakes: 0,
-                          stars: 1,
-                          time_spent: 0,
-                        },
-                        questions: [],
-                      }));
-
-                    const updatedData = {
-                      ...formData,
-                      levels: newLevels,
-                      player_info: {
-                        current_level: 1,
-                        lives: 3,
-                        score: 0,
-                      },
-                    };
-
-                    setFormData(updatedData);
-                    onDataChange(updatedData);
-                  }
-
-                  // Open AI generator panel
-                  setShowAIGenerator(true);
-                }}
+                onClick={handleAiButton}
                 className="btn-secondary flex items-center justify-center gap-2 w-full"
                 whileHover={{ scale: 1.02 }}
                 whileTap={{ scale: 0.98 }}

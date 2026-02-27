@@ -21,6 +21,7 @@ class AIQuestionController extends Controller
             'level_types'   => 'required|array',
             'level_types.*' => 'required|in:box,balloon',
             'ai_prompt'     => 'required|string|max:1000',
+            'source_text'   => 'nullable|string|max:8000', // Optional extracted text from file/URL
         ]);
 
         if (count($validated['level_types']) !== $validated['numLevels']) {
@@ -47,7 +48,26 @@ class AIQuestionController extends Controller
             }
         }
 
+       // Build the source text injection (if provided)
+        $sourceTextSection = '';
+        if (!empty($validated['source_text'])) {
+            $sourceTextSection = "
+=== TEXTE SOURCE (CONTENU DU COURS) ===
+{$validated['source_text']}
+=== FIN DU TEXTE SOURCE ===
+
+INSTRUCTIONS STRICTES POUR LE TEXTE SOURCE :
+- Tu DOIS baser tes questions UNIQUEMENT sur le contenu réel du texte source ci-dessus.
+- Les questions doivent porter sur les CONCEPTS, les RÈGLES, les EXEMPLES et les FAITS présents dans ce texte.
+- Il est INTERDIT de poser des questions sur le titre de la vidéo/document, le nom de l'auteur, le niveau mentionné dans le titre, ou toute autre métadonnée.
+- Il est INTERDIT de faire référence à \"la vidéo\", \"le titre\", \"le document\" ou \"le texte\" dans les questions. Formule les questions directement sur le savoir, comme si c'était le prof qui interroge l'élève après le cours.
+- Exemple INTERDIT : \"Qu'est-ce qui est mentionné dans le titre ?\", \"Quel niveau est cité dans la vidéo ?\"
+- Exemple CORRECT : \"Combien font 3/4 + 1/4 ?\", \"Quelle fraction est équivalente à 1/2 ?\"
+";
+        }
+
        $userPrompt = "
+{$sourceTextSection}
 Le professeur demande : \"{$validated['ai_prompt']}\"
 
 INFORMATIONS :

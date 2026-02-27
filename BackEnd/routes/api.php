@@ -7,6 +7,7 @@ use App\Http\Controllers\RemoveGameController;
 use App\Http\Controllers\GetGamesController;
 use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\AIQuestionController;
+use App\Http\Controllers\SourceInputController;
 
 Route::post('/register', [AuthController::class, 'register']);
 Route::post('/login', [AuthController::class, 'login']);
@@ -25,6 +26,10 @@ Route::post('/reset-password', [AuthController::class, 'resetPassword']);
 
 // AI Question Generator Route (Protected)
 Route::post('/generate-questions', [AIQuestionController::class, 'generateQuestions'])->middleware('auth:sanctum');
+
+// Source Input Routes (Protected)
+Route::post('/extract-file', [SourceInputController::class, 'extractFromFile'])->middleware('auth:sanctum');
+Route::post('/extract-url',  [SourceInputController::class, 'extractFromUrl'])->middleware('auth:sanctum');
 
 // Notification Routes
 Route::middleware('auth:sanctum')->group(function () {

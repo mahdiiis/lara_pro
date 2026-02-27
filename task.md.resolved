@@ -1,0 +1,31 @@
+# Sprint-2: Source Input Feature
+
+## Planning
+- [x] Explore project structure (React/Vite frontend + Laravel 11 backend)
+- [x] Read [InitialForm.jsx](file:///c:/Users/Usuario/Desktop/2Pi_Teacher_Dashboard-main%20-%20working%20_%20AI_Nopreview/FrontEnd/src/components/InitialForm.jsx), [AIQuestionGenerator.jsx](file:///c:/Users/Usuario/Desktop/2Pi_Teacher_Dashboard-main%20-%20working%20_%20AI_Nopreview/FrontEnd/src/components/AIQuestionGenerator.jsx), [AIQuestionController.php](file:///c:/Users/Usuario/Desktop/2Pi_Teacher_Dashboard-main%20-%20working%20_%20AI_Nopreview/BackEnd/app/Http/Controllers/AIQuestionController.php)
+- [x] Read routes, composer.json, CSS styles
+- [/] Write implementation plan
+- [ ] Get user approval
+
+## Backend
+- [x] Install PHP libraries: `smalot/pdfparser` (PDF), `phpoffice/phpword` (DOCX), `symfony/dom-crawler` + `guzzlehttp/guzzle` (URL scraping)
+- [x] Create [SourceInputController.php](file:///c:/Users/Usuario/Desktop/2Pi_Teacher_Dashboard-main%20-%20working%20_%20AI_Nopreview/BackEnd/app/Http/Controllers/SourceInputController.php) with:
+  - [x] [extractFromFile()](file:///c:/Users/Usuario/Desktop/2Pi_Teacher_Dashboard-main%20-%20working%20_%20AI_Nopreview/BackEnd/app/Http/Controllers/SourceInputController.php#21-87) method (PDF/TXT/DOCX parsing)
+  - [x] [extractFromUrl()](file:///c:/Users/Usuario/Desktop/2Pi_Teacher_Dashboard-main%20-%20working%20_%20AI_Nopreview/BackEnd/app/Http/Controllers/SourceInputController.php#92-160) method (web scraping + content extraction)
+  - [x] Error handling (file size, type, URL access)
+- [x] Register new routes in [api.php](file:///c:/Users/Usuario/Desktop/2Pi_Teacher_Dashboard-main%20-%20working%20_%20AI_Nopreview/BackEnd/routes/api.php)
+- [x] Update [AIQuestionController.php](file:///c:/Users/Usuario/Desktop/2Pi_Teacher_Dashboard-main%20-%20working%20_%20AI_Nopreview/BackEnd/app/Http/Controllers/AIQuestionController.php) to accept optional `source_text` and inject it into AI prompt
+
+## Frontend
+- [ ] Create `SourceInputPanel.jsx` component with:
+  - [ ] Tabs: "Text Prompt" | "Upload File" | "Paste Link"
+  - [ ] File upload (drag & drop + button) for PDF/TXT/DOCX
+  - [ ] URL input field + Fetch/Process button
+  - [ ] Loading & error states
+- [ ] Update [AIQuestionGenerator.jsx](file:///c:/Users/Usuario/Desktop/2Pi_Teacher_Dashboard-main%20-%20working%20_%20AI_Nopreview/FrontEnd/src/components/AIQuestionGenerator.jsx) to use `SourceInputPanel` and pass `source_text` to API
+
+## Verification
+- [ ] Test file upload (PDF, TXT, DOCX)
+- [ ] Test URL extraction
+- [ ] Test AI generation with extracted text
+- [ ] Test error handling (bad URL, wrong file type, large file)
